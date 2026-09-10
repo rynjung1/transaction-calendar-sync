@@ -1,0 +1,17 @@
+{
+  "name": "transaction-calendar-sync-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.78.0",
+    "@vercel/node": "^12.0.1",
+    "plaid": "^47.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Transaction Calendar Sync",
+    "slug": "transaction-calendar-sync",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "txncalsync",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rynjung1.transactioncalendarsync",
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "This app writes your transactions as events on the calendar you choose, so it needs permission to add and view events.",
+        "NSCalendarsFullAccessUsageDescription": "This app writes your transactions as events on the calendar you choose, so it needs permission to add and view events.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.rynjung1.transactioncalendarsync",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "READ_CALENDAR",
+        "WRITE_CALENDAR"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-dev-client"
+    ],
+    "extra": {
+      "apiBaseUrl": "http://localhost:3000",
+      "supabaseUrl": "https://qddrlqlbjzhmjwotgmbc.supabase.co",
+      "supabaseAnonKey": "sb_publishable_lc7XV6Vq2hy-MyAbwJvJAA_tQPwrkeK",
+      "eas": {
+        "projectId": "4b6f7547-bd97-456d-8db2-77c16280ab11"
+      }
+    }
+  }
+}

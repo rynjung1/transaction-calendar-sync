@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+.vercel/
+.vercel
+
+# Supabase CLI local/project metadata — includes project ref, org id, and
+# pooler connection info. Never commit this.
+supabase/.temp/
+supabase/.branches/

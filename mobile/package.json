@@ -12,6 +12,7 @@
     "expo-haptics": "~57.0.2",
     "expo-linear-gradient": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.22",
     "lucide-react-native": "^1.43.0",
     "react": "19.2.3",
     "react-native": "0.86.3",

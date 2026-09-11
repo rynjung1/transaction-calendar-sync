@@ -37,7 +37,7 @@
       "expo-dev-client"
     ],
     "extra": {
-      "apiBaseUrl": "http://localhost:3000",
+      "apiBaseUrl": "https://backend-theta-fawn-72.vercel.app",
       "supabaseUrl": "https://qddrlqlbjzhmjwotgmbc.supabase.co",
       "supabaseAnonKey": "sb_publishable_lc7XV6Vq2hy-MyAbwJvJAA_tQPwrkeK",
       "eas": {

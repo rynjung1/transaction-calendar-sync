@@ -8,8 +8,8 @@
 Connects to the user's bank account via Plaid, pulls transaction data (merchant, amount, timestamp, category), and writes each transaction as an event on the user's device calendar (whichever calendar they choose — Google, iCloud, or local — via the native calendar API). The goal: a passive spending diary that shows up automatically on the calendar you already check.
 
 ## Target platforms
-- iOS and Android, both shipping to their respective app stores (App Store priority, since that's the harder review)
-- Built with Expo (React Native) + a custom dev client, using EAS Build for store submission. Not compatible with Expo Go — Plaid's SDK requires native modules.
+- iOS only. Was originally iOS + Android; changed in hindsight — user doesn't have an Android device to test on. Android config in `mobile/app.json`/`eas.json` is left in place (permissions, adaptive icon assets, build profile) as harmless dead weight rather than stripped out, in case Android gets picked back up later — don't build or test against it as an active target, and don't invest further effort keeping its config current.
+- Built with Expo (React Native) + a custom dev client, using EAS Build for App Store submission. Not compatible with Expo Go — Plaid's SDK requires native modules.
 
 ## Confirmed architecture (do not deviate without discussing first)
 

@@ -18,6 +18,7 @@ Connects to the user's bank account via Plaid, pulls transaction data (merchant,
 - `react-native-plaid-link-sdk` v13+ (session-based API: `createPlaidLinkSession`, not the legacy `PlaidLink` component)
 - `react-native-calendar-events` for writing to the device calendar (wraps EventKit on iOS, CalendarProvider on Android) — this is the ONLY calendar integration needed, do not build separate Google Calendar API / EventKit integrations, this library covers both
 - App lets the user pick which on-device calendar to write to (calendar selection is handled by `findCalendars()` from this library)
+- Android `minSdkVersion` is pinned to 26 via `expo-build-properties` (`mobile/app.json`) — Plaid's Android SDK (`com.plaid.link:sdk-core`) requires it and fails the manifest merger at Expo's default of 24. Don't lower this without checking Plaid's SDK requirement first. iOS deployment target hasn't been checked against Plaid's iOS SDK's own minimum (its podspec declares `ios 15.1`) — verify before the first iOS device/simulator build with this Plaid SDK version.
 
 ### Backend — `backend/`
 - Vercel serverless functions (TypeScript, `@vercel/node`)

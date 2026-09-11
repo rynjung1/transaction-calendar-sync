@@ -1,11 +1,43 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabaseAdmin } from "../../lib/supabase";
 import { syncPlaidItem } from "../../lib/plaidSync";
+import { verifyPlaidWebhook, WebhookVerificationError } from "../../lib/plaidWebhookVerify";
+
+// @vercel/node fully buffers the request body before the handler runs and
+// replays it on `req` as a real readable stream (independent of the already-
+// parsed `req.body`) — consuming it here gets us the exact raw bytes Plaid
+// signed, which req.body (re-serialized JSON) would not reliably byte-match.
+async function readRawBody(req: VercelRequest): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
 
 // Plaid webhooks: https://plaid.com/docs/api/webhooks/
+//
+// This endpoint can't use requireUser() — Plaid has no user session — so
+// verifyPlaidWebhook() (signature + freshness + body-hash check against
+// Plaid's own published key) is the only thing standing between the open
+// internet and a handler that triggers real Plaid API calls and mutates
+// plaid_items status. A request that fails verification is not from Plaid,
+// so it's rejected outright rather than acked with 200.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    const rawBody = await readRawBody(req);
+    await verifyPlaidWebhook(req, rawBody);
+  } catch (err) {
+    if (err instanceof WebhookVerificationError) {
+      console.warn("Rejected webhook: failed verification —", err.message);
+      return res.status(401).json({ error: "Failed verification" });
+    }
+    console.error("webhook verification error", err);
+    return res.status(400).json({ error: "Failed to verify webhook" });
   }
 
   const {

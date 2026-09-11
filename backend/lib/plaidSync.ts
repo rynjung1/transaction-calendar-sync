@@ -10,7 +10,7 @@ interface PlaidItemRow {
   cursor: string | null;
 }
 
-interface SyncFilters {
+export interface SyncFilters {
   min_amount: number;
   excluded_categories: string[];
 }

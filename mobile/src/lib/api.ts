@@ -14,21 +14,41 @@ async function authedFetch(path: string, options: RequestInit = {}) {
   } = await supabase.auth.getSession();
 
   if (!session) {
-    throw new Error("Not signed in");
+    throw new Error("You're signed out — please sign in again.");
   }
 
-  const res = await fetch(`${apiBaseUrl}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-      ...options.headers,
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiBaseUrl}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+        ...options.headers,
+      },
+    });
+  } catch (err) {
+    console.error(`Network error calling ${path}`, err);
+    throw new Error("Couldn't reach the server. Check your connection and try again.");
+  }
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`${path} failed (${res.status}): ${body}`);
+    const bodyText = await res.text();
+    console.error(`${path} failed (${res.status}):`, bodyText);
+    // Our own backend returns {"error": "a human-readable message"} — surface
+    // that when present, since it's often specific and worth showing (e.g. a
+    // validation message); fall back to a calm generic line otherwise, never
+    // the raw response body or status code.
+    let message = "Something went wrong. Please try again.";
+    try {
+      const parsed = JSON.parse(bodyText);
+      if (typeof parsed?.error === "string" && parsed.error) {
+        message = parsed.error;
+      }
+    } catch {
+      // Not JSON — keep the generic message.
+    }
+    throw new Error(message);
   }
 
   return res.json();

@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,6 +17,7 @@ import { categorySpec, theme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
 import type { MonthlyTransaction } from "../types";
+import { getErrorMessage } from "../lib/errors";
 
 function monthLabel(month: string): string {
   const [year, mon] = month.split("-").map(Number);
@@ -77,22 +79,24 @@ function roundPercentagesToSum100(amounts: number[]): number[] {
 export default function InsightsScreen() {
   const [month, setMonth] = useState(currentMonth());
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<MonthlyTransaction[]>([]);
   const [previousMonthTotal, setPreviousMonthTotal] = useState(0);
+
+  async function fetchMonth(m: string) {
+    const res = await getMonthlyTransactions(m);
+    setTransactions(res.transactions);
+    setPreviousMonthTotal(res.previousMonthTotal);
+  }
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getMonthlyTransactions(month)
-      .then((res) => {
-        if (cancelled) return;
-        setTransactions(res.transactions);
-        setPreviousMonthTotal(res.previousMonthTotal);
-      })
+    fetchMonth(month)
       .catch((err) => {
-        if (!cancelled) setError(String(err));
+        if (!cancelled) setError(getErrorMessage(err));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -101,6 +105,18 @@ export default function InsightsScreen() {
       cancelled = true;
     };
   }, [month]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await fetchMonth(month);
+      setError(null);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const summary = useMemo(() => {
     const expenses = transactions.filter((t) => t.amount > 0);
@@ -175,11 +191,21 @@ export default function InsightsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.monthRow}>
-        <Pressable onPress={() => setMonth((m) => shiftMonth(m, -1))} hitSlop={12}>
+        <Pressable
+          onPress={() => setMonth((m) => shiftMonth(m, -1))}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month"
+        >
           <Text style={styles.monthArrow}>‹</Text>
         </Pressable>
         <Text style={styles.monthLabel}>{monthLabel(month)}</Text>
-        <Pressable onPress={() => setMonth((m) => shiftMonth(m, 1))} hitSlop={12}>
+        <Pressable
+          onPress={() => setMonth((m) => shiftMonth(m, 1))}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Next month"
+        >
           <Text style={styles.monthArrow}>›</Text>
         </Pressable>
       </View>
@@ -187,15 +213,34 @@ export default function InsightsScreen() {
       {loading ? (
         <ActivityIndicator color={theme.textPrimary} style={{ marginTop: spacing.xl }} />
       ) : error ? (
-        <Text style={styles.errorText}>{error}</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContentCentered}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.textPrimary} />
+          }
+        >
+          <Text style={styles.errorText}>{error}</Text>
+        </ScrollView>
       ) : transactions.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Inbox size={28} color={theme.textMuted} />
-          <Text style={styles.emptyTitle}>No transactions in {monthLabel(month)}</Text>
-          <Text style={styles.emptySubtitle}>Nothing synced for this month yet.</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContentCentered}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.textPrimary} />
+          }
+        >
+          <View style={styles.emptyState}>
+            <Inbox size={28} color={theme.textMuted} />
+            <Text style={styles.emptyTitle}>No transactions in {monthLabel(month)}</Text>
+            <Text style={styles.emptySubtitle}>Nothing synced for this month yet.</Text>
+          </View>
+        </ScrollView>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.textPrimary} />
+          }
+        >
           <View style={styles.statTile}>
             <Text style={styles.statLabel}>Total spend</Text>
             <Text style={styles.statValue}>{formatCurrency(summary.totalSpend)}</Text>
@@ -306,6 +351,7 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.pagePlane },
   scrollContent: { padding: spacing.md, paddingBottom: spacing.xl },
+  scrollContentCentered: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
   monthRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -316,8 +362,8 @@ const styles = StyleSheet.create({
   },
   monthArrow: { color: theme.textPrimary, fontSize: 24, paddingHorizontal: spacing.sm },
   monthLabel: { ...typography.md, fontWeight: "600", color: theme.textPrimary, minWidth: 160, textAlign: "center" },
-  errorText: { ...typography.sm, fontWeight: "400", color: theme.textSecondary, textAlign: "center", marginTop: spacing.xl, paddingHorizontal: spacing.lg },
-  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, marginTop: -spacing.xl },
+  errorText: { ...typography.sm, fontWeight: "400", color: theme.textSecondary, textAlign: "center" },
+  emptyState: { alignItems: "center", justifyContent: "center", gap: spacing.sm },
   emptyTitle: { ...typography.md, color: theme.textSecondary, textAlign: "center" },
   emptySubtitle: { ...typography.sm, fontWeight: "400", color: theme.textMuted, textAlign: "center" },
   statTile: {

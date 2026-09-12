@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import { Building2 } from "lucide-react-native";
 import { createPlaidLinkSession } from "react-native-plaid-link-sdk";
 import { createLinkToken, exchangePublicToken } from "../lib/api";
+import { getErrorMessage } from "../lib/errors";
 import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
@@ -36,7 +37,7 @@ export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
             onLinked();
           } catch (err) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert("Couldn't finish linking", String(err));
+            Alert.alert("Couldn't finish linking", getErrorMessage(err));
           } finally {
             setLoading(false);
           }
@@ -55,7 +56,7 @@ export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
     } catch (err) {
       setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Couldn't start Plaid Link", String(err));
+      Alert.alert("Couldn't start Plaid Link", getErrorMessage(err));
     }
   }
 

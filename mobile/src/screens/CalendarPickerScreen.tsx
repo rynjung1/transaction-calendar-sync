@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Haptics from "expo-haptics";
 import { Calendar, CalendarOff } from "lucide-react-native";
 import { listWritableCalendars, requestCalendarPermission } from "../lib/calendar";
 import type { SelectedCalendar } from "../types";
@@ -22,6 +23,7 @@ export default function CalendarPickerScreen({ onSelected }: Props) {
   // let the user make an informed call every time, since this only ever
   // happens once per calendar choice, not per transaction.
   function confirmAndSelect(calendar: SelectedCalendar) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(
       `Use "${calendar.title}"?`,
       `Every synced transaction — merchant name and exact amount — becomes an event on this calendar, visible in lock-screen previews and to anyone else with access to it${calendar.source ? ` (${calendar.source})` : ""}.`,
@@ -64,7 +66,7 @@ export default function CalendarPickerScreen({ onSelected }: Props) {
           data={calendars}
           keyExtractor={(cal) => cal.id}
           renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => confirmAndSelect(item)}>
+            <Pressable style={styles.row} onPress={() => confirmAndSelect(item)} accessibilityRole="button">
               <View style={styles.rowIcon}>
                 <Calendar size={18} color={theme.textPrimary} />
               </View>

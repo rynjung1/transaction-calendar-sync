@@ -1,9 +1,21 @@
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  FlatList,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { CircleCheck } from "lucide-react-native";
 import { getSyncFilters, updateSyncFilters, deleteAccount } from "../lib/api";
+import { getErrorMessage } from "../lib/errors";
 import { supabase } from "../lib/supabase";
 import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
@@ -50,7 +62,7 @@ export default function SettingsScreen({ onAddAccount }: Props) {
         setValidCategories(res.valid_categories);
       })
       .catch((err) => {
-        if (!cancelled) setError(String(err));
+        if (!cancelled) setError(getErrorMessage(err));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -92,7 +104,7 @@ export default function SettingsScreen({ onAddAccount }: Props) {
       Alert.alert("Saved", "Your sync filters have been updated.");
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Couldn't save filters", String(err));
+      Alert.alert("Couldn't save filters", getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -120,7 +132,7 @@ export default function SettingsScreen({ onAddAccount }: Props) {
       await supabase.auth.signOut();
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Couldn't delete account", String(err));
+      Alert.alert("Couldn't delete account", getErrorMessage(err));
       setDeleting(false);
     }
   }
@@ -143,77 +155,90 @@ export default function SettingsScreen({ onAddAccount }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <Text style={styles.title}>Settings</Text>
-
-      <Text style={styles.sectionTitle}>Minimum amount</Text>
-      <Text style={styles.sectionSubtitle}>
-        Charges below this amount won't be synced to your calendar. Refunds and income are never
-        filtered by amount.
-      </Text>
-      <View style={styles.inputRow}>
-        <Text style={styles.inputPrefix}>$</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="0"
-          placeholderTextColor={theme.textMuted}
-          keyboardType="decimal-pad"
-          value={minAmountText}
-          onChangeText={setMinAmountText}
-        />
-      </View>
-
-      <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Excluded categories</Text>
-      <Text style={styles.sectionSubtitle}>
-        Transactions in these categories are never synced, regardless of amount.
-      </Text>
-      <FlatList
-        style={styles.list}
-        data={validCategories}
-        keyExtractor={(category) => category}
-        renderItem={({ item: category }) => {
-          const isExcluded = excluded.has(category);
-          return (
-            <Pressable style={styles.categoryRow} onPress={() => toggleCategory(category)}>
-              <Text style={styles.categoryLabel}>{humanizeCategory(category)}</Text>
-              {isExcluded ? (
-                <CircleCheck size={20} color={theme.textPrimary} />
-              ) : (
-                <View style={styles.uncheckedCircle} />
-              )}
-            </Pressable>
-          );
-        }}
-      />
-
-      <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={handleSave} disabled={saving}>
-        {saving ? (
-          <ActivityIndicator color={theme.pagePlane} />
-        ) : (
-          <Text style={styles.saveButtonText}>Save</Text>
-        )}
-      </Pressable>
-
-      <Pressable style={styles.addAccountButton} onPress={onAddAccount}>
-        <Text style={styles.addAccountButtonText}>Add another bank account</Text>
-      </Pressable>
-
-      <Pressable
-        style={[styles.deleteButton, deleting && styles.saveButtonDisabled]}
-        onPress={handleDeleteAccount}
-        disabled={deleting}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {deleting ? (
-          <ActivityIndicator color={theme.statusDanger} />
-        ) : (
-          <Text style={styles.deleteButtonText}>Delete account</Text>
-        )}
-      </Pressable>
+        <Text style={styles.title}>Settings</Text>
+
+        <Text style={styles.sectionTitle}>Minimum amount</Text>
+        <Text style={styles.sectionSubtitle}>
+          Charges below this amount won't be synced to your calendar. Refunds and income are never
+          filtered by amount.
+        </Text>
+        <View style={styles.inputRow}>
+          <Text style={styles.inputPrefix}>$</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="0"
+            placeholderTextColor={theme.textMuted}
+            keyboardType="decimal-pad"
+            accessibilityLabel="Minimum amount"
+            value={minAmountText}
+            onChangeText={setMinAmountText}
+          />
+        </View>
+
+        <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Excluded categories</Text>
+        <Text style={styles.sectionSubtitle}>
+          Transactions in these categories are never synced, regardless of amount.
+        </Text>
+        <FlatList
+          style={styles.list}
+          data={validCategories}
+          keyExtractor={(category) => category}
+          renderItem={({ item: category }) => {
+            const isExcluded = excluded.has(category);
+            return (
+              <Pressable
+                style={styles.categoryRow}
+                onPress={() => toggleCategory(category)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isExcluded }}
+                accessibilityLabel={humanizeCategory(category)}
+              >
+                <Text style={styles.categoryLabel}>{humanizeCategory(category)}</Text>
+                {isExcluded ? (
+                  <CircleCheck size={20} color={theme.textPrimary} />
+                ) : (
+                  <View style={styles.uncheckedCircle} />
+                )}
+              </Pressable>
+            );
+          }}
+        />
+
+        <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={handleSave} disabled={saving}>
+          {saving ? (
+            <ActivityIndicator color={theme.pagePlane} />
+          ) : (
+            <Text style={styles.saveButtonText}>Save</Text>
+          )}
+        </Pressable>
+
+        <Pressable style={styles.addAccountButton} onPress={onAddAccount}>
+          <Text style={styles.addAccountButtonText}>Add another bank account</Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.deleteButton, deleting && styles.saveButtonDisabled]}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color={theme.statusDanger} />
+          ) : (
+            <Text style={styles.deleteButtonText}>Delete account</Text>
+          )}
+        </Pressable>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.lg, backgroundColor: theme.pagePlane },
+  container: { flex: 1, backgroundColor: theme.pagePlane },
+  keyboardAvoider: { flex: 1, padding: spacing.lg },
   title: { ...typography.lg, color: theme.textPrimary, marginBottom: spacing.md },
   errorText: {
     ...typography.sm,

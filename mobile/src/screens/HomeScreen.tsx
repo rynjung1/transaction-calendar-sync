@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { RefreshCw, LogOut, CircleCheck, CircleX, Inbox } from "lucide-react-native";
 import { syncTransactions, confirmCalendarEvent } from "../lib/api";
 import { createTransactionEvent } from "../lib/calendar";
+import { getErrorMessage } from "../lib/errors";
 import { supabase } from "../lib/supabase";
 import type { SelectedCalendar, SyncedTransaction } from "../types";
 import { theme } from "../lib/theme";
@@ -19,10 +20,17 @@ export default function HomeScreen({ calendar }: Props) {
   const [syncing, setSyncing] = useState(false);
   const [hasSynced, setHasSynced] = useState(false);
   const [lastSynced, setLastSynced] = useState<SyncedTransaction[]>([]);
+  // Writing each transaction to the calendar is a real per-item round trip,
+  // not instant — for more than a couple of transactions "Sync now" turning
+  // into a spinner with no feedback for several seconds reads as hung, not
+  // busy. Tracked separately from `syncing` since it only applies once
+  // there's an actual count to report.
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   async function handleSync() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSyncing(true);
+    setProgress(null);
     try {
       const { transactions } = await syncTransactions();
       const synced: SyncedTransaction[] = [];
@@ -35,16 +43,39 @@ export default function HomeScreen({ calendar }: Props) {
         } catch (err) {
           synced.push({ ...txn, status: "failed" });
         }
+        setProgress({ done: synced.length, total: transactions.length });
       }
 
       setLastSynced(synced);
       setHasSynced(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Honest feedback about partial failure, not a blanket "Success" no
+      // matter what happened — a user with 2 of 10 events missing from their
+      // calendar should be told plainly, not just left to notice on their own.
+      const failedCount = synced.filter((s) => s.status === "failed").length;
+      if (synced.length === 0) {
+        // Nothing to do — no haptic, the empty state already says so.
+      } else if (failedCount === 0) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else if (failedCount === synced.length) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert(
+          "Couldn't add to calendar",
+          "None of your transactions could be added. Check your calendar permissions and try again."
+        );
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        Alert.alert(
+          "Some transactions didn't sync",
+          `${failedCount} of ${synced.length} couldn't be added to your calendar. You can try syncing again.`
+        );
+      }
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Sync failed", String(err));
+      Alert.alert("Sync failed", getErrorMessage(err));
     } finally {
       setSyncing(false);
+      setProgress(null);
     }
   }
 
@@ -56,9 +87,18 @@ export default function HomeScreen({ calendar }: Props) {
         style={[styles.syncButton, syncing && styles.syncButtonDisabled]}
         onPress={handleSync}
         disabled={syncing}
+        accessibilityRole="button"
+        accessibilityLabel="Sync now"
       >
         {syncing ? (
-          <ActivityIndicator color={theme.pagePlane} />
+          <>
+            <ActivityIndicator color={theme.pagePlane} />
+            {progress && progress.total > 1 && (
+              <Text style={styles.syncButtonText}>
+                Syncing {progress.done} of {progress.total}…
+              </Text>
+            )}
+          </>
         ) : (
           <>
             <RefreshCw size={16} color={theme.pagePlane} />
@@ -71,6 +111,9 @@ export default function HomeScreen({ calendar }: Props) {
         style={styles.list}
         data={lastSynced}
         keyExtractor={(txn) => txn.id}
+        refreshControl={
+          <RefreshControl refreshing={syncing} onRefresh={handleSync} tintColor={theme.textPrimary} />
+        }
         renderItem={({ item }) => (
           <View style={styles.row}>
             {item.status === "synced" ? (
@@ -101,7 +144,12 @@ export default function HomeScreen({ calendar }: Props) {
         }
       />
 
-      <Pressable style={styles.signOutButton} onPress={() => supabase.auth.signOut()}>
+      <Pressable
+        style={styles.signOutButton}
+        onPress={() => supabase.auth.signOut()}
+        accessibilityRole="button"
+        accessibilityLabel="Sign out"
+      >
         <LogOut size={16} color={theme.textMuted} />
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>

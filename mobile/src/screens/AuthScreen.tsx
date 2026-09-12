@@ -1,5 +1,16 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, Linking } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Linking,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Mail, Lock } from "lucide-react-native";
@@ -33,69 +44,73 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
-      <Text style={styles.title}>Transaction Calendar Sync</Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <Text style={styles.title}>Transaction Calendar Sync</Text>
 
-      <View style={styles.inputRow}>
-        <Mail size={18} color={theme.textMuted} />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={theme.textMuted}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-      </View>
+        <View style={styles.inputRow}>
+          <Mail size={18} color={theme.textMuted} />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={theme.textMuted}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            accessibilityLabel="Email"
+            value={email}
+            onChangeText={setEmail}
+          />
+        </View>
 
-      <View style={styles.inputRow}>
-        <Lock size={18} color={theme.textMuted} />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={theme.textMuted}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-      </View>
+        <View style={styles.inputRow}>
+          <Lock size={18} color={theme.textMuted} />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={theme.textMuted}
+            secureTextEntry
+            textContentType="password"
+            accessibilityLabel="Password"
+            value={password}
+            onChangeText={setPassword}
+          />
+        </View>
 
-      <View style={styles.buttons}>
-        <Pressable
-          style={[styles.button, styles.primaryButton]}
-          onPress={handleSignIn}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={theme.pagePlane} />
-          ) : (
-            <Text style={styles.primaryButtonText}>Sign in</Text>
-          )}
+        <View style={styles.buttons}>
+          <Pressable
+            style={[styles.button, styles.primaryButton]}
+            onPress={handleSignIn}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={theme.pagePlane} />
+            ) : (
+              <Text style={styles.primaryButtonText}>Sign in</Text>
+            )}
+          </Pressable>
+          <Pressable
+            style={[styles.button, styles.secondaryButton]}
+            onPress={handleSignUp}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryButtonText}>Sign up</Text>
+          </Pressable>
+        </View>
+
+        <Pressable onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} hitSlop={8}>
+          <Text style={styles.privacyLink}>Privacy Policy</Text>
         </Pressable>
-        <Pressable
-          style={[styles.button, styles.secondaryButton]}
-          onPress={handleSignUp}
-          disabled={loading}
-        >
-          <Text style={styles.secondaryButtonText}>Sign up</Text>
-        </Pressable>
-      </View>
-
-      <Pressable onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} hitSlop={8}>
-        <Text style={styles.privacyLink}>Privacy Policy</Text>
-      </Pressable>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.lg,
-    gap: spacing.md,
-    backgroundColor: theme.pagePlane,
-  },
+  container: { flex: 1, backgroundColor: theme.pagePlane },
+  keyboardAvoider: { flex: 1, justifyContent: "center", padding: spacing.lg, gap: spacing.md },
   title: {
     ...typography.lg,
     color: theme.textPrimary,

@@ -28,6 +28,7 @@ Expo + TypeScript, using a custom dev client (**not** compatible with Expo Go, s
   - `CalendarPickerScreen.tsx` — choose which device calendar to write to
   - `HomeScreen.tsx` — synced transaction list, sync/refresh
   - `InsightsScreen.tsx` — monthly spend summary, trend chart, category breakdown
+  - `SettingsScreen.tsx` — min-amount and excluded-category sync filters
 - `src/lib/`
   - `api.ts` — authenticated fetch wrapper around the backend endpoints below
   - `calendar.ts` — permissions, calendar listing, and event creation via `react-native-calendar-events`
@@ -36,7 +37,7 @@ Expo + TypeScript, using a custom dev client (**not** compatible with Expo Go, s
 
 ### `backend/`
 
-Vercel serverless functions (TypeScript, `@vercel/node`). Every route requires a Supabase-authenticated user (`lib/auth.ts`) except the Plaid webhook.
+Vercel serverless functions (TypeScript, `@vercel/node`). Every route requires a Supabase-authenticated user (`lib/auth.ts`) except the Plaid webhook, which instead verifies Plaid's own signed `Plaid-Verification` JWT (`lib/plaidWebhookVerify.ts`) — it can't use a user session since Plaid has no user context, but it's not unauthenticated.
 
 | Route | Method | Purpose |
 | --- | --- | --- |
@@ -44,11 +45,12 @@ Vercel serverless functions (TypeScript, `@vercel/node`). Every route requires a
 | `/api/plaid/exchange-token` | POST | Exchanges `public_token` for an `access_token`, encrypts and stores it, runs an initial sync |
 | `/api/plaid/status` | GET | Whether the user has an active linked item |
 | `/api/plaid/sync` | POST | User-initiated refresh — syncs every active `plaid_items` row for the user |
-| `/api/plaid/webhook` | POST | Plaid webhook receiver (`SYNC_UPDATES_AVAILABLE`, `ITEM_LOGIN_REQUIRED`, `ITEM_ERROR`) |
+| `/api/plaid/webhook` | POST | Plaid webhook receiver (`SYNC_UPDATES_AVAILABLE`, `ITEM_LOGIN_REQUIRED`, `ITEM_ERROR`) — signature-verified, see above |
 | `/api/transactions/monthly` | GET | One month's transactions plus the previous month's total, for the Insights screen |
 | `/api/transactions/confirm` | POST | Records the `calendar_event_id` once the client has written an event, so it isn't recreated |
+| `/api/settings/sync-filters` | GET / PATCH | Reads/writes a user's `min_amount` + `excluded_categories` sync filters |
 
-Shared logic lives in `lib/`: `plaid.ts` (client setup), `plaidSync.ts` (the sync-cursor helper called by both `sync.ts` and the webhook), `crypto.ts` (access-token encryption), `supabase.ts` (service-role client), `auth.ts` (verifies the caller's Supabase session).
+Shared logic lives in `lib/`: `plaid.ts` (client setup), `plaidSync.ts` (the sync-cursor helper called by both `sync.ts` and the webhook, applies the sync filters), `plaidCategories.ts` (the single valid-PFC-category-list source of truth), `plaidWebhookVerify.ts` (webhook signature verification), `crypto.ts` (access-token encryption), `supabase.ts` (service-role client), `auth.ts` (verifies the caller's Supabase session).
 
 ### Database
 
@@ -56,6 +58,7 @@ Postgres via Supabase (also provides auth). Schema in `backend/supabase/migratio
 
 - `0001_init.sql` — `users`, `plaid_items` (encrypted access token, item id, institution, sync cursor), `synced_transactions` (dedupe key, calendar event id, status); RLS enabled on all three (read-only policies — writes go through the backend's service-role key).
 - `0002_grants.sql` — table/sequence grants for `service_role`, needed because these tables were created via raw SQL rather than the dashboard Table Editor.
+- `0003_sync_filters.sql` — adds `users.sync_filters` (jsonb: `min_amount`, `excluded_categories`), defaulted so no backfill was needed.
 
 ## Setup
 
@@ -95,7 +98,7 @@ Required environment variables (see `.env.example`):
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Deploy with `vercel deploy` (or `vercel dev` locally), then set `PLAID_WEBHOOK_URL` to the deployed URL and add the same env vars in the Vercel project settings.
+Deploy with `vercel --prod` (or `vercel dev` locally), then set `PLAID_WEBHOOK_URL` to the deployed URL and add the same env vars in the Vercel project's Production environment. Currently deployed at `https://backend-theta-fawn-72.vercel.app` — see CLAUDE.md's Deployment section for the full env var list and the "redeploy after any env var change" caveat.
 
 ### 4. Mobile (`mobile/`)
 
@@ -118,13 +121,17 @@ Because this app uses `react-native-plaid-link-sdk` (a native module), it cannot
 
 ```bash
 npx expo prebuild
-npx expo run:ios      # or: npx expo run:android
+npx expo run:ios
 ```
+
+**iOS only** — originally targeted iOS + Android; changed because there's no Android device to test on. Android config in `app.json`/`eas.json` is left in place as harmless dead weight rather than stripped out, in case Android gets picked back up later, but isn't an active build/test target.
 
 ## Node version
 
-Local tooling was scaffolded on Node 18, which several dependencies (Expo SDK 57 / React Native 0.86, Supabase JS) now warn is unsupported — upgrade to Node 20+ before relying on `expo run:ios` / `expo run:android` or the Vercel CLI locally.
+Needs Node 20+ (Expo SDK 57 / React Native 0.86, Supabase JS all require it) — confirmed working on Node 20.20.2.
 
 ## Status
 
 Sandbox/dev only — production Plaid access, a decision on multi-account support, and calendar color-coding by category are all still open. See [CLAUDE.md](./CLAUDE.md#open-questions--not-yet-decided) for the full list.
+
+**Not yet App Store ready**: `expo-dev-client`'s launcher screen currently ships in every build profile, including `production` — real users would see a developer-tools screen instead of the app. Needs a real fix (conditional `app.config.js`, or a dev-tooling-stripping pass before submission) before any store submission. See CLAUDE.md's "Mobile security" section for this and other findings from a dedicated review (auth token storage, calendar privacy).

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Mail, Lock } from "lucide-react-native";
@@ -7,6 +7,8 @@ import { supabase } from "../lib/supabase";
 import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
+
+const PRIVACY_POLICY_URL = "https://claude.ai/code/artifact/4e325609-3c98-4037-a842-c39e4b7fce07";
 
 export default function AuthScreen() {
   const [email, setEmail] = useState("");
@@ -78,6 +80,10 @@ export default function AuthScreen() {
           <Text style={styles.secondaryButtonText}>Sign up</Text>
         </Pressable>
       </View>
+
+      <Pressable onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} hitSlop={8}>
+        <Text style={styles.privacyLink}>Privacy Policy</Text>
+      </Pressable>
     </SafeAreaView>
   );
 }
@@ -113,6 +119,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   buttons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  privacyLink: {
+    ...typography.xs,
+    color: theme.textMuted,
+    textAlign: "center",
+    textDecorationLine: "underline",
+    marginTop: spacing.lg,
+  },
   button: {
     flex: 1,
     paddingVertical: spacing.md,

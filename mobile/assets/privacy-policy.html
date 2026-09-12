@@ -1,0 +1,290 @@
+<title>Transaction Calendar Sync Privacy Policy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #faf9f7;
+    --surface: #ffffff;
+    --surface-2: #f2f0ec;
+    --text: #16160f;
+    --text-secondary: #55534a;
+    --text-muted: #85837a;
+    --border: rgba(20,20,15,0.12);
+    --accent: #2f6fc4;
+    --accent-wash: rgba(47,111,196,0.08);
+    --danger: #c73036;
+    --danger-wash: rgba(199,48,54,0.07);
+    --good: #0a8f0a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d0d0d;
+      --surface: #1a1a19;
+      --surface-2: #202020;
+      --text: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --border: rgba(255,255,255,0.10);
+      --accent: #5b9bea;
+      --accent-wash: rgba(91,155,234,0.12);
+      --danger: #e5484d;
+      --danger-wash: rgba(229,72,77,0.10);
+      --good: #2ec02e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #202020;
+    --text: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --border: rgba(255,255,255,0.10);
+    --accent: #5b9bea;
+    --accent-wash: rgba(91,155,234,0.12);
+    --danger: #e5484d;
+    --danger-wash: rgba(229,72,77,0.10);
+    --good: #2ec02e;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    line-height: 1.65;
+    padding-inline: 20px;
+    padding-block: 48px;
+  }
+  main { max-width: 680px; margin-inline: auto; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mark {
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    background: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .mark svg { width: 11px; height: 11px; }
+
+  h1 {
+    font-family: "Sora", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: clamp(28px, 5vw, 38px);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 10px 0 6px;
+    text-wrap: balance;
+  }
+  .subtitle {
+    color: var(--text-secondary);
+    font-size: 16px;
+    margin: 0 0 6px;
+  }
+  .updated {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin: 0 0 36px;
+  }
+
+  h2 {
+    font-family: "Sora", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: -0.005em;
+    margin: 44px 0 12px;
+    text-wrap: balance;
+  }
+  h1 + p, section:first-of-type h2:first-child { margin-top: 0; }
+
+  p { margin: 0 0 14px; color: var(--text); }
+  section p:last-child { margin-bottom: 0; }
+  section { margin-bottom: 4px; }
+
+  a { color: var(--accent); text-decoration-color: var(--border); text-underline-offset: 2px; }
+  a:hover { text-decoration-color: var(--accent); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  strong { font-weight: 600; }
+
+  .callout {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    background: var(--accent-wash);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin: 18px 0;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.danger { border-left-color: var(--danger); background: var(--danger-wash); }
+  .callout-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .callout.danger .callout-label { color: var(--danger); }
+
+  .table-wrap { overflow-x: auto; margin: 8px 0 20px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+    min-width: 480px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  td:first-child { font-weight: 500; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+
+  code {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.92em;
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  ul { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  li:last-child { margin-bottom: 0; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  footer a { color: var(--text-secondary); }
+</style>
+
+<main>
+  <div class="eyebrow">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3L21 20H3L12 3Z" stroke="white" stroke-width="2.4" stroke-linejoin="round"/></svg>
+    </span>
+    Transaction Calendar Sync
+  </div>
+  <h1>Privacy Policy</h1>
+  <p class="subtitle">What this app collects, why, and what you can do about it.</p>
+  <p class="updated">Last updated: September 12, 2026</p>
+
+  <section>
+    <p>This policy is written to meet Canada's <em>Personal Information Protection and Electronic Documents Act</em> (PIPEDA), since the app is built for use with a Canadian bank account.</p>
+  </section>
+
+  <section>
+    <h2>Who this policy covers</h2>
+    <p>Transaction Calendar Sync is operated by Ryan Jung. There is no separate corporate entity at this time — this policy will be updated if that changes.</p>
+    <div class="callout">
+      <span class="callout-label">Contact</span>
+      <p>For any privacy question, request, or complaint: <a href="mailto:ryanjung2007@gmail.com">ryanjung2007@gmail.com</a></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>What the app collects, and why</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Data</th><th>Why</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Email address</td><td>Create and secure your account</td><td>You, at sign-up</td></tr>
+          <tr><td>Transaction data<br><span style="font-weight:400;color:var(--text-muted)">merchant, amount, date/time, category</span></td><td>Create calendar events for your spending</td><td>Plaid, from your bank</td></tr>
+          <tr><td>Calendar choice</td><td>Know where to write events</td><td>You, on-device</td></tr>
+          <tr><td>Sync preferences</td><td>Apply the filters you've set</td><td>You, in Settings</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The app does <strong>not</strong> collect your bank login credentials — those go directly to Plaid and your bank. The app only ever receives a secure access token from Plaid, encrypted before it's stored.</p>
+    <p>The app does <strong>not</strong> read your existing calendar events. It only requests permission to list your calendars, so you can pick one, and to add new events to the one you choose.</p>
+  </section>
+
+  <section>
+    <h2>How your information is used</h2>
+    <p>Solely to provide the app's one function: turning your bank transactions into calendar events on the calendar you pick, and showing you a spending summary inside the app. Your data is never sold, and never used for advertising.</p>
+  </section>
+
+  <section>
+    <h2>Who else touches your information</h2>
+    <ul>
+      <li><strong>Plaid</strong> — connects to your bank and provides transaction data. See <a href="https://plaid.com/legal/#end-user-privacy-policy">Plaid's privacy policy</a>.</li>
+      <li><strong>Supabase</strong> — hosts the app's database and handles sign-in. Data is stored in the United States (AWS, <code>us-east-1</code>).</li>
+      <li><strong>Vercel</strong> — runs the app's backend logic, also hosted in the United States.</li>
+      <li><strong>Apple / Google</strong> — if you choose an iCloud or Google calendar, events the app creates live there under that provider's own terms, not this app's.</li>
+    </ul>
+    <div class="callout">
+      <span class="callout-label">Cross-border disclosure</span>
+      <p>Because Supabase and Vercel host their infrastructure in the United States, your personal information is processed and stored outside Canada, and may be accessible to foreign courts, law enforcement, or national security authorities under that jurisdiction's laws.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Security</h2>
+    <p>Your Plaid access token is encrypted (<code>AES-256-GCM</code>) before it's stored — never held in plain text. Database access is restricted by row-level security, so the app's infrastructure only ever reads or writes your own data. Your session is stored in your device's secure hardware-backed storage (iOS Keychain), not plain app storage.</p>
+    <p>No security measure is perfect. If a breach creates a real risk of significant harm to you, you'll be notified as soon as feasible, consistent with PIPEDA's breach notification requirements.</p>
+  </section>
+
+  <section>
+    <h2>How long your information is kept</h2>
+    <p>As long as your account is active. There's currently no automatic deletion after a period of inactivity — you can request or perform deletion at any time.</p>
+  </section>
+
+  <section>
+    <h2>Your rights</h2>
+    <p>You can, at any time:</p>
+    <ul>
+      <li><strong>See your own data</strong> — the app shows every synced transaction, in Home and Insights.</li>
+      <li><strong>Correct or update it</strong> — sync preferences are editable in Settings. Transaction data itself comes directly from your bank via Plaid and reflects what actually happened in your account, so it isn't hand-editable.</li>
+      <li><strong>Ask a question or file a complaint</strong> — email <a href="mailto:ryanjung2007@gmail.com">ryanjung2007@gmail.com</a>. If unresolved, you can complain to the <a href="https://www.priv.gc.ca/en/report-a-concern/">Office of the Privacy Commissioner of Canada</a>.</li>
+    </ul>
+    <div class="callout danger">
+      <span class="callout-label">Delete your account</span>
+      <p>In-app: <strong>Settings → Delete account.</strong> This permanently revokes your bank connection with Plaid, erases every synced transaction, and removes your account — this can't be undone. It does not delete calendar events already created; those live in your own calendar and are yours to manage.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Children's privacy</h2>
+    <p>This app is not directed at children and does not knowingly collect personal information from anyone under 13.</p>
+  </section>
+
+  <section>
+    <h2>Changes to this policy</h2>
+    <p>If a change affects how your information is used, you'll be notified in-app or by email before it takes effect.</p>
+  </section>
+
+  <footer>
+    Transaction Calendar Sync — Privacy Policy · <a href="mailto:ryanjung2007@gmail.com">ryanjung2007@gmail.com</a>
+  </footer>
+</main>

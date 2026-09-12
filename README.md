@@ -135,3 +135,5 @@ Needs Node 20+ (Expo SDK 57 / React Native 0.86, Supabase JS all require it) —
 Sandbox/dev only — production Plaid access, a decision on multi-account support, and calendar color-coding by category are all still open. See [CLAUDE.md](./CLAUDE.md#open-questions--not-yet-decided) for the full list.
 
 The `expo-dev-client` launcher screen that used to ship in every build profile (including `production`) is now excluded from production builds. See CLAUDE.md's "Mobile security" section for that and the rest of a dedicated security review — all findings from it are addressed as of this writing.
+
+**PIPEDA / privacy**: [`PRIVACY.md`](./PRIVACY.md) is the source-of-truth policy text, also published live and linked from the app's sign-in screen — see CLAUDE.md's "Key constraints" for the URL and one remaining step (making that page publicly shareable) before it's usable as the App Store Connect privacy policy URL. Account deletion (PIPEDA retention + App Store Guideline 5.1.1(v)) is built and verified end-to-end.

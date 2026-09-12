@@ -3,7 +3,7 @@ import { ActivityIndicator, View, Text, Pressable, StyleSheet } from "react-nati
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { House, ChartColumn } from "lucide-react-native";
+import { House, ChartColumn, Settings } from "lucide-react-native";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "./src/lib/supabase";
@@ -13,12 +13,13 @@ import LinkAccountScreen from "./src/screens/LinkAccountScreen";
 import CalendarPickerScreen from "./src/screens/CalendarPickerScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import InsightsScreen from "./src/screens/InsightsScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
 import { theme } from "./src/lib/theme";
 import { typography } from "./src/lib/typography";
 import { spacing } from "./src/lib/spacing";
 import type { SelectedCalendar } from "./src/types";
 
-type Tab = "home" | "insights";
+type Tab = "home" | "insights" | "settings";
 
 const CALENDAR_STORAGE_KEY = "selectedCalendar";
 
@@ -120,7 +121,13 @@ function AppContent({
       ) : (
         <View style={styles.tabbedContainer}>
           <View style={styles.screenArea}>
-            {tab === "home" ? <HomeScreen calendar={calendar} /> : <InsightsScreen />}
+            {tab === "home" ? (
+              <HomeScreen calendar={calendar} />
+            ) : tab === "insights" ? (
+              <InsightsScreen />
+            ) : (
+              <SettingsScreen />
+            )}
           </View>
           <View style={[styles.tabBar, { paddingBottom: insets.bottom }]}>
             <Pressable style={styles.tabButton} onPress={() => setTab("home")}>
@@ -131,6 +138,12 @@ function AppContent({
               <ChartColumn size={22} color={tab === "insights" ? theme.textPrimary : theme.textMuted} />
               <Text style={[styles.tabLabel, tab === "insights" && styles.tabLabelActive]}>
                 Insights
+              </Text>
+            </Pressable>
+            <Pressable style={styles.tabButton} onPress={() => setTab("settings")}>
+              <Settings size={22} color={tab === "settings" ? theme.textPrimary : theme.textMuted} />
+              <Text style={[styles.tabLabel, tab === "settings" && styles.tabLabelActive]}>
+                Settings
               </Text>
             </Pressable>
           </View>

@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { supabase } from "./supabase";
-import type { MonthlySummaryResponse, SyncedTransaction } from "../types";
+import type { MonthlySummaryResponse, SyncedTransaction, SyncFilters, SyncFiltersResponse } from "../types";
 
 const { apiBaseUrl } = Constants.expoConfig?.extra ?? {};
 
@@ -66,5 +66,18 @@ export function confirmCalendarEvent(
   return authedFetch("/api/transactions/confirm", {
     method: "POST",
     body: JSON.stringify({ transactionId, calendarEventId }),
+  });
+}
+
+export function getSyncFilters(): Promise<SyncFiltersResponse> {
+  return authedFetch("/api/settings/sync-filters", { method: "GET" });
+}
+
+export function updateSyncFilters(
+  filters: SyncFilters
+): Promise<{ ok: true; sync_filters: SyncFilters }> {
+  return authedFetch("/api/settings/sync-filters", {
+    method: "PATCH",
+    body: JSON.stringify(filters),
   });
 }

@@ -33,3 +33,13 @@ export interface MonthlySummaryResponse {
   transactions: MonthlyTransaction[];
   previousMonthTotal: number;
 }
+
+export interface SyncFilters {
+  min_amount: number;
+  excluded_categories: string[];
+}
+
+export interface SyncFiltersResponse {
+  sync_filters: SyncFilters;
+  valid_categories: string[];
+}

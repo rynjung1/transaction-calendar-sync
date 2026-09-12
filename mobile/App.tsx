@@ -8,6 +8,7 @@ import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "./src/lib/supabase";
 import { getPlaidStatus } from "./src/lib/api";
+import { getErrorMessage } from "./src/lib/errors";
 import AuthScreen from "./src/screens/AuthScreen";
 import LinkAccountScreen from "./src/screens/LinkAccountScreen";
 import CalendarPickerScreen from "./src/screens/CalendarPickerScreen";
@@ -24,9 +25,18 @@ type Tab = "home" | "insights" | "settings";
 const CALENDAR_STORAGE_KEY = "selectedCalendar";
 
 export default function App() {
+  // `booting` covers the *entire* "do we actually know this user's state
+  // yet" window — session, then (if signed in) their Plaid-linked status.
+  // It used to only cover the session check, so `linked` sat at its default
+  // `false` while the status check was still in flight: every already-linked
+  // user briefly saw "Connect your bank" on cold launch before it flipped to
+  // their real Home screen. Not anymore — nothing renders past the spinner
+  // until the real answer is in.
   const [booting, setBooting] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [linked, setLinked] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusCheckAttempt, setStatusCheckAttempt] = useState(0);
   const [calendar, setCalendar] = useState<SelectedCalendar | null>(null);
   const [tab, setTab] = useState<Tab>("home");
   // Only meaningful once already linked — this is the "add another account"
@@ -38,7 +48,10 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      setBooting(false);
+      // No session at all means there's nothing further to check before
+      // showing AuthScreen — the plaid-status effect below only runs once
+      // signed in, so booting has to end here for a signed-out user.
+      if (!data.session) setBooting(false);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
@@ -46,6 +59,15 @@ export default function App() {
       if (!next) {
         setLinked(false);
         setCalendar(null);
+        setBooting(false);
+      } else {
+        // A fresh sign-in mid-session (switching accounts, or right after
+        // Settings -> Delete account signs the old session out) needs the
+        // same "don't render until the real state is known" gate as cold
+        // launch — otherwise `linked` is still reset to false from the
+        // prior sign-out and flashes "Connect your bank" on an account
+        // that's actually already linked, while the status check catches up.
+        setBooting(true);
       }
     });
 
@@ -54,16 +76,47 @@ export default function App() {
 
   useEffect(() => {
     if (!session) return;
+    let cancelled = false;
+    setStatusError(null);
     getPlaidStatus()
-      .then((status) => setLinked(status.linked))
-      .catch(() => setLinked(false));
-  }, [session]);
+      .then((status) => {
+        if (cancelled) return;
+        setLinked(status.linked);
+      })
+      .catch((err) => {
+        // A network hiccup or transient server error is not the same thing
+        // as "this user hasn't linked a bank" — treating them the same used
+        // to route an already-linked user back through the first-link flow
+        // on nothing more than a bad connection. Show a real error with a
+        // way to retry instead of guessing either way.
+        if (!cancelled) setStatusError(getErrorMessage(err));
+      })
+      .finally(() => {
+        if (!cancelled) setBooting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, statusCheckAttempt]);
 
   useEffect(() => {
     if (!linked) return;
+    let cancelled = false;
     AsyncStorage.getItem(CALENDAR_STORAGE_KEY).then((raw) => {
-      if (raw) setCalendar(JSON.parse(raw));
+      if (cancelled || !raw) return;
+      try {
+        setCalendar(JSON.parse(raw));
+      } catch {
+        // Corrupted local data (a bad write, a leftover incompatible shape
+        // from an older version) — treat as "no calendar chosen yet" rather
+        // than let JSON.parse throw inside this unhandled promise callback.
+        // The picker just runs again; nothing the user did caused this.
+        AsyncStorage.removeItem(CALENDAR_STORAGE_KEY);
+      }
     });
+    return () => {
+      cancelled = true;
+    };
   }, [linked]);
 
   async function handleCalendarSelected(selected: SelectedCalendar) {
@@ -75,6 +128,22 @@ export default function App() {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={theme.textPrimary} />
+      </View>
+    );
+  }
+
+  if (statusError) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.statusErrorText}>{statusError}</Text>
+        <Pressable
+          style={styles.retryButton}
+          onPress={() => setStatusCheckAttempt((n) => n + 1)}
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+        >
+          <Text style={styles.retryButtonText}>Try again</Text>
+        </Pressable>
       </View>
     );
   }
@@ -172,7 +241,22 @@ function AppContent({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.pagePlane },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.pagePlane },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+    backgroundColor: theme.pagePlane,
+  },
+  statusErrorText: { ...typography.sm, fontWeight: "400", color: theme.textSecondary, textAlign: "center" },
+  retryButton: {
+    backgroundColor: theme.textPrimary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 12,
+  },
+  retryButtonText: { ...typography.sm, color: theme.pagePlane },
   tabbedContainer: { flex: 1 },
   screenArea: { flex: 1 },
   tabBar: {

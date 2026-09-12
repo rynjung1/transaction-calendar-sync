@@ -23,7 +23,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const month = typeof req.query.month === "string" ? req.query.month : undefined;
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+  // The regex alone accepts "2026-13" or "2026-00" as well-formed — JS's Date
+  // then silently normalizes an out-of-range month (13 rolls into January of
+  // the next year) rather than erroring, so this would return real data
+  // mislabeled under the requested month instead of rejecting the request.
+  // Not reachable through the app's own UI (which only ever constructs valid
+  // months) and not a security issue, but worth closing as real input
+  // validation rather than relying on Date's forgiving overflow behavior.
+  const monthMatch = month?.match(/^(\d{4})-(\d{2})$/);
+  const monthNum = Number(monthMatch?.[2]);
+  if (!month || !monthMatch || monthNum < 1 || monthNum > 12) {
     return res.status(400).json({ error: "Missing or invalid month, expected YYYY-MM" });
   }
 

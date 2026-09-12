@@ -16,6 +16,22 @@ export default function CalendarPickerScreen({ onSelected }: Props) {
   const [calendars, setCalendars] = useState<SelectedCalendar[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // No reliable "is this shared" signal on a calendar from the underlying
+  // library (react-native-calendar-events exposes title/source/isPrimary,
+  // nothing about sharing) — rather than guess, name the actual calendar and
+  // let the user make an informed call every time, since this only ever
+  // happens once per calendar choice, not per transaction.
+  function confirmAndSelect(calendar: SelectedCalendar) {
+    Alert.alert(
+      `Use "${calendar.title}"?`,
+      `Every synced transaction — merchant name and exact amount — becomes an event on this calendar, visible in lock-screen previews and to anyone else with access to it${calendar.source ? ` (${calendar.source})` : ""}.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Use this calendar", onPress: () => onSelected(calendar) },
+      ]
+    );
+  }
+
   useEffect(() => {
     (async () => {
       const granted = await requestCalendarPermission();
@@ -48,7 +64,7 @@ export default function CalendarPickerScreen({ onSelected }: Props) {
           data={calendars}
           keyExtractor={(cal) => cal.id}
           renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => onSelected(item)}>
+            <Pressable style={styles.row} onPress={() => confirmAndSelect(item)}>
               <View style={styles.rowIcon}>
                 <Calendar size={18} color={theme.textPrimary} />
               </View>

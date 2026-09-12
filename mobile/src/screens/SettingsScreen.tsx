@@ -3,7 +3,8 @@ import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Alert, Activity
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { CircleCheck } from "lucide-react-native";
-import { getSyncFilters, updateSyncFilters } from "../lib/api";
+import { getSyncFilters, updateSyncFilters, deleteAccount } from "../lib/api";
+import { supabase } from "../lib/supabase";
 import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
@@ -25,6 +26,7 @@ const MAX_MIN_AMOUNT = 1_000_000;
 export default function SettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validCategories, setValidCategories] = useState<string[]>([]);
   const [minAmountText, setMinAmountText] = useState("0");
@@ -89,6 +91,33 @@ export default function SettingsScreen() {
       Alert.alert("Couldn't save filters", String(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      "Delete your account?",
+      "This permanently deletes your account, disconnects your bank, and erases every synced transaction — this can't be undone. Calendar events already created are not removed automatically; you'd need to delete those yourself.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete account", style: "destructive", onPress: confirmDeleteAccount },
+      ]
+    );
+  }
+
+  async function confirmDeleteAccount() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      // The account (and its session) no longer exists server-side — clear
+      // the local session too so App.tsx's auth listener sends the user back
+      // to the sign-in screen instead of holding a session for a deleted user.
+      await supabase.auth.signOut();
+    } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Couldn't delete account", String(err));
+      setDeleting(false);
     }
   }
 
@@ -159,6 +188,18 @@ export default function SettingsScreen() {
           <Text style={styles.saveButtonText}>Save</Text>
         )}
       </Pressable>
+
+      <Pressable
+        style={[styles.deleteButton, deleting && styles.saveButtonDisabled]}
+        onPress={handleDeleteAccount}
+        disabled={deleting}
+      >
+        {deleting ? (
+          <ActivityIndicator color={theme.statusDanger} />
+        ) : (
+          <Text style={styles.deleteButtonText}>Delete account</Text>
+        )}
+      </Pressable>
     </SafeAreaView>
   );
 }
@@ -219,4 +260,14 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: { opacity: 0.7 },
   saveButtonText: { ...typography.sm, color: theme.pagePlane },
+  deleteButton: {
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.statusDanger,
+  },
+  deleteButtonText: { ...typography.sm, color: theme.statusDanger },
 });

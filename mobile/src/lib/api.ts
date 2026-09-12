@@ -81,3 +81,7 @@ export function updateSyncFilters(
     body: JSON.stringify(filters),
   });
 }
+
+export function deleteAccount(): Promise<{ ok: true }> {
+  return authedFetch("/api/account", { method: "DELETE" });
+}

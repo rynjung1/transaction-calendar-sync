@@ -14,6 +14,7 @@ export const theme = {
   baseline: "#383835",
   border: "rgba(255,255,255,0.10)",
   statusGood: "#0ca30c",
+  statusDanger: "#e5484d",
   seriesBlue: "#3987e5",
 };
 

@@ -15,6 +15,32 @@ export interface SyncFilters {
   excluded_categories: string[];
 }
 
+type PlaidAddedTransaction = Awaited<
+  ReturnType<typeof plaidClient.transactionsSync>
+>["data"]["added"][number];
+
+// Extracted so it's directly unit-testable without mocking Supabase/Plaid.
+export function shouldSyncTransaction(txn: PlaidAddedTransaction, filters: SyncFilters): boolean {
+  // Outgoing charge below the user's floor — skip. Refunds/income
+  // (amount <= 0) are never filtered on amount.
+  if (txn.amount > 0 && txn.amount < filters.min_amount) {
+    return false;
+  }
+
+  // excluded_categories can only ever contain PFC `primary` values (enforced
+  // by PATCH /api/settings/sync-filters's validation) — compare against PFC
+  // only, never the legacy `category` taxonomy fallback used for display
+  // elsewhere. A transaction with no PFC enrichment has no PFC category to
+  // compare, so it correctly never matches an exclusion, rather than being
+  // silently compared against the wrong taxonomy and never matching by luck.
+  const pfcCategory = txn.personal_finance_category?.primary ?? null;
+  if (pfcCategory && (filters.excluded_categories ?? []).includes(pfcCategory)) {
+    return false;
+  }
+
+  return true;
+}
+
 // Pulls all new transactions for one Plaid item since its last cursor,
 // upserts them as pending rows, and advances the stored cursor.
 // Called both from the sync webhook and from a user-initiated refresh —
@@ -49,25 +75,7 @@ export async function syncPlaidItem(item: PlaidItemRow) {
 
   // Drop transactions the user has opted out of before they ever reach
   // synced_transactions — filtered-out transactions are not stored.
-  const filtered = added.filter((txn) => {
-    // Outgoing charge below the user's floor — skip. Refunds/income
-    // (amount <= 0) are never filtered on amount.
-    if (txn.amount > 0 && txn.amount < filters.min_amount) {
-      return false;
-    }
-
-    // TODO(must-fix before category-exclusion UI ships): this falls back to the
-    // legacy `category` taxonomy when a transaction has no PFC enrichment, but
-    // excluded_categories will only ever hold PFC `primary` values — such a
-    // transaction can never match an exclusion. Silent no-op today because
-    // excluded_categories is empty for everyone until the settings UI exists.
-    const category = txn.personal_finance_category?.primary ?? txn.category?.[0] ?? null;
-    if (category && (filters.excluded_categories ?? []).includes(category)) {
-      return false;
-    }
-
-    return true;
-  });
+  const filtered = added.filter((txn) => shouldSyncTransaction(txn, filters));
 
   if (filtered.length > 0) {
     const rows = filtered.map((txn) => ({

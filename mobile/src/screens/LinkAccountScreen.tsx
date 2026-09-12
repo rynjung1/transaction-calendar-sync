@@ -11,9 +11,14 @@ import { spacing } from "../lib/spacing";
 
 interface Props {
   onLinked: () => void;
+  // Only passed when this screen is reached from "Add another bank account"
+  // in Settings, rather than the required first-link flow — gives that path
+  // a way back, and swaps the copy so it doesn't say "Connect your bank" as
+  // if this were the user's first one.
+  onCancel?: () => void;
 }
 
-export default function LinkAccountScreen({ onLinked }: Props) {
+export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
   const [loading, setLoading] = useState(false);
 
   async function handleConnectBank() {
@@ -59,9 +64,11 @@ export default function LinkAccountScreen({ onLinked }: Props) {
       <View style={styles.iconCircle}>
         <Building2 size={32} color={theme.textPrimary} />
       </View>
-      <Text style={styles.title}>Connect your bank</Text>
+      <Text style={styles.title}>{onCancel ? "Add another bank account" : "Connect your bank"}</Text>
       <Text style={styles.subtitle}>
-        Link your account so transactions can show up on your calendar.
+        {onCancel
+          ? "Link another account — transactions from both will show up on your calendar."
+          : "Link your account so transactions can show up on your calendar."}
       </Text>
       <Pressable
         style={[styles.button, loading && styles.buttonDisabled]}
@@ -74,6 +81,11 @@ export default function LinkAccountScreen({ onLinked }: Props) {
           <Text style={styles.buttonText}>Connect a bank account</Text>
         )}
       </Pressable>
+      {onCancel && (
+        <Pressable onPress={onCancel} disabled={loading} hitSlop={8} style={styles.cancelButton}>
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </Pressable>
+      )}
     </SafeAreaView>
   );
 }
@@ -117,4 +129,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { ...typography.sm, color: theme.pagePlane },
+  cancelButton: { marginTop: spacing.md },
+  cancelButtonText: { ...typography.sm, color: theme.textMuted },
 });

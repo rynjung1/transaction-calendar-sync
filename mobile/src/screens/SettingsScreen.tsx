@@ -23,7 +23,11 @@ function humanizeCategory(pfc: string): string {
 
 const MAX_MIN_AMOUNT = 1_000_000;
 
-export default function SettingsScreen() {
+interface Props {
+  onAddAccount: () => void;
+}
+
+export default function SettingsScreen({ onAddAccount }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -189,6 +193,10 @@ export default function SettingsScreen() {
         )}
       </Pressable>
 
+      <Pressable style={styles.addAccountButton} onPress={onAddAccount}>
+        <Text style={styles.addAccountButtonText}>Add another bank account</Text>
+      </Pressable>
+
       <Pressable
         style={[styles.deleteButton, deleting && styles.saveButtonDisabled]}
         onPress={handleDeleteAccount}
@@ -260,6 +268,17 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: { opacity: 0.7 },
   saveButtonText: { ...typography.sm, color: theme.pagePlane },
+  addAccountButton: {
+    backgroundColor: theme.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.border,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.lg,
+  },
+  addAccountButtonText: { ...typography.sm, color: theme.textPrimary },
   deleteButton: {
     paddingVertical: spacing.md,
     borderRadius: 12,

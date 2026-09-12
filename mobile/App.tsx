@@ -29,6 +29,11 @@ export default function App() {
   const [linked, setLinked] = useState(false);
   const [calendar, setCalendar] = useState<SelectedCalendar | null>(null);
   const [tab, setTab] = useState<Tab>("home");
+  // Only meaningful once already linked — this is the "add another account"
+  // path from Settings, distinct from the required first-link flow gated by
+  // `linked` above. There's no navigation stack in this app, so this is a
+  // second, separate flag rather than trying to route through `linked`.
+  const [addingAccount, setAddingAccount] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -84,6 +89,8 @@ export default function App() {
         setTab={setTab}
         setLinked={setLinked}
         onCalendarSelected={handleCalendarSelected}
+        addingAccount={addingAccount}
+        setAddingAccount={setAddingAccount}
       />
     </SafeAreaProvider>
   );
@@ -97,6 +104,8 @@ interface AppContentProps {
   setTab: (tab: Tab) => void;
   setLinked: (linked: boolean) => void;
   onCalendarSelected: (calendar: SelectedCalendar) => void;
+  addingAccount: boolean;
+  setAddingAccount: (adding: boolean) => void;
 }
 
 function AppContent({
@@ -107,6 +116,8 @@ function AppContent({
   setTab,
   setLinked,
   onCalendarSelected,
+  addingAccount,
+  setAddingAccount,
 }: AppContentProps) {
   const insets = useSafeAreaInsets();
 
@@ -118,6 +129,11 @@ function AppContent({
         <LinkAccountScreen onLinked={() => setLinked(true)} />
       ) : !calendar ? (
         <CalendarPickerScreen onSelected={onCalendarSelected} />
+      ) : addingAccount ? (
+        <LinkAccountScreen
+          onLinked={() => setAddingAccount(false)}
+          onCancel={() => setAddingAccount(false)}
+        />
       ) : (
         <View style={styles.tabbedContainer}>
           <View style={styles.screenArea}>
@@ -126,7 +142,7 @@ function AppContent({
             ) : tab === "insights" ? (
               <InsightsScreen />
             ) : (
-              <SettingsScreen />
+              <SettingsScreen onAddAccount={() => setAddingAccount(true)} />
             )}
           </View>
           <View style={[styles.tabBar, { paddingBottom: insets.bottom }]}>

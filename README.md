@@ -107,14 +107,14 @@ cd mobile
 npm install
 ```
 
-Edit `app.json` → `expo.extra` with your backend URL and Supabase project URL/anon key (safe to ship in the client — the anon key is public by design; the service-role key never leaves `backend/`):
+Edit `app.config.ts`'s `extra` object with your backend URL and Supabase project URL/anon key (safe to ship in the client — the anon key is public by design; the service-role key never leaves `backend/`):
 
-```json
-"extra": {
-  "apiBaseUrl": "https://your-backend.vercel.app",
-  "supabaseUrl": "https://<project-ref>.supabase.co",
-  "supabaseAnonKey": "<anon key>"
-}
+```ts
+extra: {
+  apiBaseUrl: "https://your-backend.vercel.app",
+  supabaseUrl: "https://<project-ref>.supabase.co",
+  supabaseAnonKey: "<anon key>",
+},
 ```
 
 Because this app uses `react-native-plaid-link-sdk` (a native module), it cannot run in Expo Go:
@@ -124,7 +124,7 @@ npx expo prebuild
 npx expo run:ios
 ```
 
-**iOS only** — originally targeted iOS + Android; changed because there's no Android device to test on. Android config in `app.json`/`eas.json` is left in place as harmless dead weight rather than stripped out, in case Android gets picked back up later, but isn't an active build/test target.
+**iOS only** — originally targeted iOS + Android; changed because there's no Android device to test on. Android config in `app.config.ts`/`eas.json` is left in place as harmless dead weight rather than stripped out, in case Android gets picked back up later, but isn't an active build/test target.
 
 ## Node version
 
@@ -134,4 +134,4 @@ Needs Node 20+ (Expo SDK 57 / React Native 0.86, Supabase JS all require it) —
 
 Sandbox/dev only — production Plaid access, a decision on multi-account support, and calendar color-coding by category are all still open. See [CLAUDE.md](./CLAUDE.md#open-questions--not-yet-decided) for the full list.
 
-**Not yet App Store ready**: `expo-dev-client`'s launcher screen currently ships in every build profile, including `production` — real users would see a developer-tools screen instead of the app. Needs a real fix (conditional `app.config.js`, or a dev-tooling-stripping pass before submission) before any store submission. See CLAUDE.md's "Mobile security" section for this and other findings from a dedicated review (auth token storage, calendar privacy).
+The `expo-dev-client` launcher screen that used to ship in every build profile (including `production`) is now excluded from production builds — see CLAUDE.md's "Mobile security" section for how, and for other findings from a dedicated review (calendar privacy is still an open one).

@@ -50,7 +50,7 @@ Vercel serverless functions (TypeScript, `@vercel/node`). Every route requires a
 | `/api/transactions/confirm` | POST | Records the `calendar_event_id` once the client has written an event, so it isn't recreated |
 | `/api/settings/sync-filters` | GET / PATCH | Reads/writes a user's `min_amount` + `excluded_categories` sync filters |
 
-Shared logic lives in `lib/`: `plaid.ts` (client setup), `plaidSync.ts` (the sync-cursor helper called by both `sync.ts` and the webhook, applies the sync filters), `plaidCategories.ts` (the single valid-PFC-category-list source of truth), `plaidWebhookVerify.ts` (webhook signature verification), `crypto.ts` (access-token encryption), `supabase.ts` (service-role client), `auth.ts` (verifies the caller's Supabase session).
+Shared logic lives in `lib/`: `plaid.ts` (client setup), `plaidSync.ts` (the sync-cursor helper called by both `sync.ts` and the webhook, applies the sync filters), `plaidCategories.ts` (the single valid-PFC-category-list source of truth), `legacyCategoryMapping.ts` (Plaid's own legacy-category → PFC mapping, for filtering transactions that predate PFC enrichment), `plaidWebhookVerify.ts` (webhook signature verification), `crypto.ts` (access-token encryption), `supabase.ts` (service-role client), `auth.ts` (verifies the caller's Supabase session).
 
 ### Database
 

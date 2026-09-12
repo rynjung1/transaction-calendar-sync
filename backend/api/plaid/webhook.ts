@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabaseAdmin } from "../../lib/supabase";
-import { syncPlaidItem } from "../../lib/plaidSync";
+import { getSyncFilters, syncPlaidItem } from "../../lib/plaidSync";
 import { verifyPlaidWebhook, WebhookVerificationError } from "../../lib/plaidWebhookVerify";
 
 // @vercel/node fully buffers the request body before the handler runs and
@@ -64,7 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (webhookType === "TRANSACTIONS" && webhookCode === "SYNC_UPDATES_AVAILABLE") {
-      await syncPlaidItem(item);
+      const filters = await getSyncFilters(item.user_id);
+      await syncPlaidItem(item, filters);
     } else if (webhookType === "ITEM" && webhookCode === "ERROR") {
       const status = webhookError?.error_code === "ITEM_LOGIN_REQUIRED" ? "login_required" : "error";
       await supabaseAdmin.from("plaid_items").update({ status }).eq("id", item.id);

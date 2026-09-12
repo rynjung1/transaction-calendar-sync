@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabaseAdmin } from "../../lib/supabase";
 import { requireUser, UnauthorizedError } from "../../lib/auth";
-import { syncPlaidItem } from "../../lib/plaidSync";
+import { getSyncFilters, syncPlaidItem } from "../../lib/plaidSync";
 
 // User-initiated refresh (e.g. pull-to-refresh). Not a timer poll — Plaid
 // still notifies us of background updates via the SYNC_UPDATES_AVAILABLE
@@ -24,8 +24,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw itemsError;
     }
 
-    for (const item of items ?? []) {
-      await syncPlaidItem(item);
+    if (items && items.length > 0) {
+      // Fetched once per request, not once per item — see getSyncFilters's
+      // own comment for why that matters once a user has more than one
+      // linked item. Skipped entirely when there's nothing to sync.
+      const filters = await getSyncFilters(user.id);
+      for (const item of items) {
+        await syncPlaidItem(item, filters);
+      }
     }
 
     const { data: pending, error: pendingError } = await supabaseAdmin

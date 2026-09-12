@@ -4,7 +4,7 @@ import { plaidClient } from "../../lib/plaid";
 import { supabaseAdmin } from "../../lib/supabase";
 import { encrypt } from "../../lib/crypto";
 import { requireUser, UnauthorizedError } from "../../lib/auth";
-import { syncPlaidItem } from "../../lib/plaidSync";
+import { getSyncFilters, syncPlaidItem } from "../../lib/plaidSync";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -55,7 +55,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Pull the initial batch of transactions right away rather than waiting
     // on Plaid's first SYNC_UPDATES_AVAILABLE webhook.
-    await syncPlaidItem(inserted);
+    const filters = await getSyncFilters(user.id);
+    await syncPlaidItem(inserted, filters);
 
     return res.status(200).json({ ok: true });
   } catch (err) {

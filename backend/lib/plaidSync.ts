@@ -46,11 +46,29 @@ export function shouldSyncTransaction(txn: PlaidAddedTransaction, filters: SyncF
   return true;
 }
 
+// Kept separate from syncPlaidItem so a caller syncing multiple items for the
+// same user (e.g. /api/plaid/sync) fetches this once and passes it down,
+// rather than once per item — was previously fetched inside syncPlaidItem
+// itself, an N+1 for any user with more than one linked plaid_items row.
+export async function getSyncFilters(userId: string): Promise<SyncFilters> {
+  const { data: userRow, error } = await supabaseAdmin
+    .from("users")
+    .select("sync_filters")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return userRow.sync_filters as SyncFilters;
+}
+
 // Pulls all new transactions for one Plaid item since its last cursor,
 // upserts them as pending rows, and advances the stored cursor.
 // Called both from the sync webhook and from a user-initiated refresh —
 // never on a timer, per Plaid's recommended sync pattern.
-export async function syncPlaidItem(item: PlaidItemRow) {
+export async function syncPlaidItem(item: PlaidItemRow, filters: SyncFilters) {
   const accessToken = decrypt(item.access_token_encrypted);
   let cursor = item.cursor ?? undefined;
   let hasMore = true;
@@ -65,18 +83,6 @@ export async function syncPlaidItem(item: PlaidItemRow) {
     cursor = response.data.next_cursor;
     hasMore = response.data.has_more;
   }
-
-  const { data: userRow, error: userError } = await supabaseAdmin
-    .from("users")
-    .select("sync_filters")
-    .eq("id", item.user_id)
-    .single();
-
-  if (userError) {
-    throw userError;
-  }
-
-  const filters = userRow.sync_filters as SyncFilters;
 
   // Drop transactions the user has opted out of before they ever reach
   // synced_transactions — filtered-out transactions are not stored.

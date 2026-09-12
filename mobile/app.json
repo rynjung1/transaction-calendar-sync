@@ -42,7 +42,8 @@
             "minSdkVersion": 26
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "apiBaseUrl": "https://backend-theta-fawn-72.vercel.app",

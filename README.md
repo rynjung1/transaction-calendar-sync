@@ -134,4 +134,4 @@ Needs Node 20+ (Expo SDK 57 / React Native 0.86, Supabase JS all require it) —
 
 Sandbox/dev only — production Plaid access, a decision on multi-account support, and calendar color-coding by category are all still open. See [CLAUDE.md](./CLAUDE.md#open-questions--not-yet-decided) for the full list.
 
-The `expo-dev-client` launcher screen that used to ship in every build profile (including `production`) is now excluded from production builds — see CLAUDE.md's "Mobile security" section for how, and for other findings from a dedicated review (calendar privacy is still an open one).
+The `expo-dev-client` launcher screen that used to ship in every build profile (including `production`) is now excluded from production builds. See CLAUDE.md's "Mobile security" section for that and the rest of a dedicated security review — all findings from it are addressed as of this writing.

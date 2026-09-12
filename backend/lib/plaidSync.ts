@@ -1,6 +1,7 @@
 import { plaidClient } from "./plaid";
 import { supabaseAdmin } from "./supabase";
 import { decrypt } from "./crypto";
+import { LEGACY_CATEGORY_ID_TO_PFC_PRIMARY } from "./legacyCategoryMapping";
 
 interface PlaidItemRow {
   id: string;
@@ -28,12 +29,16 @@ export function shouldSyncTransaction(txn: PlaidAddedTransaction, filters: SyncF
   }
 
   // excluded_categories can only ever contain PFC `primary` values (enforced
-  // by PATCH /api/settings/sync-filters's validation) — compare against PFC
-  // only, never the legacy `category` taxonomy fallback used for display
-  // elsewhere. A transaction with no PFC enrichment has no PFC category to
-  // compare, so it correctly never matches an exclusion, rather than being
-  // silently compared against the wrong taxonomy and never matching by luck.
-  const pfcCategory = txn.personal_finance_category?.primary ?? null;
+  // by PATCH /api/settings/sync-filters's validation). Prefer real PFC
+  // enrichment; for transactions that predate it, fall back to Plaid's own
+  // published legacy-category-id -> PFC mapping, but ONLY the unambiguous
+  // slice of it (see legacyCategoryMapping.ts) — a category_id with no entry
+  // there (either genuinely unmapped, or ambiguous at the primary level) has
+  // no comparable value, same as if this fallback didn't exist.
+  const pfcCategory =
+    txn.personal_finance_category?.primary ??
+    (txn.category_id ? LEGACY_CATEGORY_ID_TO_PFC_PRIMARY[txn.category_id] : undefined) ??
+    null;
   if (pfcCategory && (filters.excluded_categories ?? []).includes(pfcCategory)) {
     return false;
   }

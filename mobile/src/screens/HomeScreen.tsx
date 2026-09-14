@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator, RefreshControl } from "react-native";
+import { View, Text, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator, RefreshControl, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -136,9 +136,18 @@ export default function HomeScreen({ calendar }: Props) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else if (failedCount === synced.length) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        // Every single one failing mid-use (as opposed to at initial setup,
+        // where CalendarPickerScreen handles this) is consistent with
+        // calendar access having been revoked in Settings after the fact —
+        // same recovery action as that screen already offers, not just a
+        // generic "check your permissions" with no way to act on it here.
         Alert.alert(
           "Couldn't add to calendar",
-          "None of your transactions could be added. Check your calendar permissions and try again."
+          "None of your transactions could be added. This can happen if calendar access was turned off in Settings.",
+          [
+            { text: "Not now", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ]
         );
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

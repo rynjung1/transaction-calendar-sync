@@ -98,6 +98,8 @@ export function exchangePublicToken(publicToken: string): Promise<{ ok: true }> 
 
 export function syncTransactions(): Promise<{
   transactions: SyncedTransaction[];
+  hasMore: boolean;
+  total: number;
 }> {
   return authedFetch("/api/plaid/sync", { method: "POST" });
 }

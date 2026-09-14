@@ -47,14 +47,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const { data: pending, error: pendingError } = await supabaseAdmin
+    // Capped, not "return every pending row" — a user who doesn't open the
+    // app for weeks (an entirely normal pattern for a passive spending
+    // diary, not misuse) can accumulate a large pending backlog just from
+    // Plaid's own webhook-driven syncing running in the background the
+    // whole time. Returning all of it in one response means the mobile
+    // app's HomeScreen then sequentially writes every single one to the
+    // calendar in one very long-running loop (each is a real per-item round
+    // trip) before the user sees anything finish. Paging it lets the client
+    // process a manageable batch, show real progress, and call again for
+    // the rest via `hasMore` rather than one unbounded operation.
+    const PENDING_PAGE_SIZE = 100;
+    const { data: pending, error: pendingError, count } = await supabaseAdmin
       .from("synced_transactions")
       .select(
-        "id, plaid_transaction_id, merchant_name, amount, iso_currency_code, category, date, datetime, calendar_event_id, status"
+        "id, plaid_transaction_id, merchant_name, amount, iso_currency_code, category, date, datetime, calendar_event_id, status",
+        { count: "exact" }
       )
       .eq("user_id", user.id)
       .eq("status", "pending")
-      .order("date", { ascending: false });
+      .order("date", { ascending: false })
+      .limit(PENDING_PAGE_SIZE);
 
     if (pendingError) {
       throw pendingError;
@@ -73,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: txn.status,
     }));
 
-    return res.status(200).json({ transactions });
+    return res.status(200).json({ transactions, hasMore: (count ?? 0) > transactions.length, total: count ?? transactions.length });
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return res.status(401).json({ error: err.message });

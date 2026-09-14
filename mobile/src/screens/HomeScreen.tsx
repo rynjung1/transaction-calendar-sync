@@ -76,26 +76,51 @@ export default function HomeScreen({ calendar }: Props) {
     setSyncing(true);
     setProgress(null);
     try {
-      const { transactions } = await syncTransactions();
       const synced: SyncedTransaction[] = [];
       const pendingEvents = await getPendingEventMap();
 
-      for (const txn of transactions) {
-        try {
-          // Reuse an already-created-but-unconfirmed event for this exact
-          // transaction if one exists, rather than creating a new one.
-          let eventId = pendingEvents[txn.id];
-          if (!eventId) {
-            eventId = await createTransactionEvent(calendar.id, txn);
-            await setPendingEvent(pendingEvents, txn.id, eventId);
+      // The backend caps how many pending transactions one response returns
+      // (a user who hasn't opened the app in a while — an ordinary pattern
+      // for a passive spending diary, not misuse — can build up a large
+      // backlog just from webhook-driven syncing running the whole time).
+      // Loop until it reports no more, rather than assume one response is
+      // everything; `total` (the real count across all pages, not just this
+      // batch) drives the progress indicator so it reads correctly across
+      // the whole operation instead of resetting per page.
+      let hasMore = true;
+      let total = 0;
+      while (hasMore) {
+        const response = await syncTransactions();
+        total = Math.max(total, response.total);
+        let pageSucceeded = 0;
+
+        for (const txn of response.transactions) {
+          try {
+            // Reuse an already-created-but-unconfirmed event for this exact
+            // transaction if one exists, rather than creating a new one.
+            let eventId = pendingEvents[txn.id];
+            if (!eventId) {
+              eventId = await createTransactionEvent(calendar.id, txn);
+              await setPendingEvent(pendingEvents, txn.id, eventId);
+            }
+            await confirmCalendarEvent(txn.id, eventId);
+            await clearPendingEvent(pendingEvents, txn.id);
+            synced.push({ ...txn, calendarEventId: eventId, status: "synced" });
+            pageSucceeded++;
+          } catch (err) {
+            synced.push({ ...txn, status: "failed" });
           }
-          await confirmCalendarEvent(txn.id, eventId);
-          await clearPendingEvent(pendingEvents, txn.id);
-          synced.push({ ...txn, calendarEventId: eventId, status: "synced" });
-        } catch (err) {
-          synced.push({ ...txn, status: "failed" });
+          setProgress({ done: synced.length, total });
         }
-        setProgress({ done: synced.length, total: transactions.length });
+
+        // A transaction only leaves "pending" on a successful confirm — so a
+        // page where every single one failed (e.g. calendar access revoked
+        // mid-sync) would come back completely unchanged on the next fetch,
+        // looping on the exact same stuck page forever. Bail once nothing
+        // in a full page could be confirmed; retrying within the same
+        // session can't help if the underlying cause hasn't changed, and
+        // whatever's still pending is picked up by the next sync attempt.
+        hasMore = response.hasMore && (pageSucceeded > 0 || response.transactions.length === 0);
       }
 
       setLastSynced(synced);

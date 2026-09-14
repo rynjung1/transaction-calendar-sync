@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { View, Text, FlatList, Pressable, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, Pressable, StyleSheet, Alert, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Calendar, CalendarOff } from "lucide-react-native";
+import { Calendar, CalendarOff, LockKeyhole } from "lucide-react-native";
 import { listWritableCalendars, requestCalendarPermission } from "../lib/calendar";
 import type { SelectedCalendar } from "../types";
 import { theme } from "../lib/theme";
@@ -16,6 +16,16 @@ interface Props {
 export default function CalendarPickerScreen({ onSelected }: Props) {
   const [calendars, setCalendars] = useState<SelectedCalendar[]>([]);
   const [loading, setLoading] = useState(true);
+  // Distinct from "loaded zero calendars" — this screen is a required gate
+  // in front of the entire app for every single user (App.tsx only shows
+  // Home/Insights/Settings once a calendar is chosen), and denying the
+  // permission prompt is a completely ordinary thing for a real user to do,
+  // not a rare misuse. Previously this rendered the exact same "No writable
+  // calendars found on this device" empty state either way — misleading
+  // (the real problem is permission, not missing calendars) and a genuine
+  // dead end: no retry, no path to Settings, nothing recoverable short of
+  // quitting the app, finding Settings unprompted, and relaunching.
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   // No reliable "is this shared" signal on a calendar from the underlying
   // library (react-native-calendar-events exposes title/source/isPrimary,
@@ -34,21 +44,22 @@ export default function CalendarPickerScreen({ onSelected }: Props) {
     );
   }
 
-  useEffect(() => {
-    (async () => {
-      const granted = await requestCalendarPermission();
-      if (!granted) {
-        Alert.alert(
-          "Calendar access needed",
-          "Grant calendar access in Settings to choose where transactions get synced."
-        );
-        setLoading(false);
-        return;
-      }
-      const found = await listWritableCalendars();
-      setCalendars(found);
+  async function checkPermissionAndLoad() {
+    setLoading(true);
+    const granted = await requestCalendarPermission();
+    if (!granted) {
+      setPermissionDenied(true);
       setLoading(false);
-    })();
+      return;
+    }
+    setPermissionDenied(false);
+    const found = await listWritableCalendars();
+    setCalendars(found);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    checkPermissionAndLoad();
   }, []);
 
   return (
@@ -60,6 +71,29 @@ export default function CalendarPickerScreen({ onSelected }: Props) {
         <View style={styles.centerFill}>
           <ActivityIndicator color={theme.textPrimary} />
           <Text style={styles.mutedText}>Loading calendars…</Text>
+        </View>
+      ) : permissionDenied ? (
+        <View style={styles.centerFill}>
+          <LockKeyhole size={28} color={theme.textMuted} />
+          <Text style={styles.mutedText}>
+            Calendar access is off for this app. Turn it on in Settings, then come back here.
+          </Text>
+          <Pressable
+            style={styles.settingsButton}
+            onPress={() => Linking.openSettings()}
+            accessibilityRole="button"
+            accessibilityLabel="Open Settings"
+          >
+            <Text style={styles.settingsButtonText}>Open Settings</Text>
+          </Pressable>
+          <Pressable
+            onPress={checkPermissionAndLoad}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Try again"
+          >
+            <Text style={styles.retryText}>Try again</Text>
+          </Pressable>
         </View>
       ) : (
         <FlatList
@@ -98,8 +132,23 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
-  centerFill: { alignItems: "center", justifyContent: "center", gap: spacing.sm, marginTop: spacing.xl },
+  centerFill: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
+  },
   mutedText: { ...typography.sm, fontWeight: "400", color: theme.textMuted, textAlign: "center" },
+  settingsButton: {
+    backgroundColor: theme.textPrimary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 12,
+    marginTop: spacing.sm,
+  },
+  settingsButtonText: { ...typography.sm, color: theme.pagePlane },
+  retryText: { ...typography.sm, color: theme.textMuted, marginTop: spacing.xs },
   row: {
     flexDirection: "row",
     alignItems: "center",

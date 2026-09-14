@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View, Text, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -60,8 +60,18 @@ export default function HomeScreen({ calendar }: Props) {
   // busy. Tracked separately from `syncing` since it only applies once
   // there's an actual count to report.
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  // The button (disabled={syncing}) and RefreshControl (refreshing={syncing})
+  // both gate on the same React state, which updates asynchronously — a
+  // pull-to-refresh gesture and a tap on the button in the same instant could
+  // both read `syncing` as still false and start concurrently before either
+  // re-render lands. A ref is synchronous and checked before either state
+  // update, closing that narrow window outright rather than relying on
+  // React's render timing.
+  const syncInFlight = useRef(false);
 
   async function handleSync() {
+    if (syncInFlight.current) return;
+    syncInFlight.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSyncing(true);
     setProgress(null);
@@ -116,6 +126,7 @@ export default function HomeScreen({ calendar }: Props) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Sync failed", getErrorMessage(err));
     } finally {
+      syncInFlight.current = false;
       setSyncing(false);
       setProgress(null);
     }

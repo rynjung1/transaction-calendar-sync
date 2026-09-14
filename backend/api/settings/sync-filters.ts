@@ -13,7 +13,7 @@ type ValidationResult = { ok: true; filters: SyncFilters } | { ok: false; error:
 // Rejects on type/finite/range before ever comparing, since a naive
 // `value >= 0` on a parsed-JSON string/null/boolean does the wrong thing in
 // JS rather than failing loudly.
-function validateSyncFilters(body: unknown): ValidationResult {
+export function validateSyncFilters(body: unknown): ValidationResult {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return { ok: false, error: "Request body must be a JSON object" };
   }

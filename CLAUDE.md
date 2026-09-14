@@ -51,7 +51,7 @@ Connects to the user's bank account via Plaid, pulls transaction data (merchant,
 ### Database
 - Postgres via Supabase (also provides auth, so we get user accounts for free)
 - Schema defined in `backend/supabase/migrations/0001_init.sql`: `users`, `plaid_items` (encrypted access_token, item_id, institution, sync cursor), `synced_transactions` (dedupe key, calendar_event_id, status)
-- Backend writes with the service-role key; RLS policies exist for any direct client reads
+- Backend writes with the service-role key (bypasses RLS entirely — the backend's own per-request user-scoping is the real protection there, not RLS). RLS policies exist on all three tables but are currently unreachable dead code — see the Backend resilience finding below for why, and the pending migration (`0004_drop_unused_select_policies.sql`, not yet confirmed applied) that closes the gap for good rather than relying on that staying true.
 
 ### Auth
 - Supabase Auth — so a user's Plaid connection persists across app reinstalls / device changes

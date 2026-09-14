@@ -38,7 +38,7 @@ Solely to provide the app's one function: turning your bank transactions into ca
 
 ## Security
 
-Your Plaid access token is encrypted (AES-256-GCM) before it's stored — never stored in plain text. Database access is restricted by row-level security so the app's own infrastructure only ever reads or writes your own data. Your session is stored using your device's secure hardware-backed storage (iOS Keychain), not plain app storage.
+Your Plaid access token is encrypted (AES-256-GCM) before it's stored — never stored in plain text. Every request to the app's backend is authenticated and scoped to your own account, so it only ever reads or writes your own data; the database itself is also locked down so it can't be queried directly from outside the app's own backend. Your session is stored using your device's secure hardware-backed storage (iOS Keychain), not plain app storage.
 
 No security measure is perfect. If a breach occurs that creates a real risk of significant harm to you, you'll be notified as soon as feasible, consistent with PIPEDA's breach notification requirements.
 

@@ -251,7 +251,7 @@
 
   <section>
     <h2>Security</h2>
-    <p>Your Plaid access token is encrypted (<code>AES-256-GCM</code>) before it's stored — never held in plain text. Database access is restricted by row-level security, so the app's infrastructure only ever reads or writes your own data. Your session is stored in your device's secure hardware-backed storage (iOS Keychain), not plain app storage.</p>
+    <p>Your Plaid access token is encrypted (<code>AES-256-GCM</code>) before it's stored — never held in plain text. Every request to the app's backend is authenticated and scoped to your own account, so it only ever reads or writes your own data; the database itself is also locked down so it can't be queried directly from outside the app's own backend. Your session is stored in your device's secure hardware-backed storage (iOS Keychain), not plain app storage.</p>
     <p>No security measure is perfect. If a breach creates a real risk of significant harm to you, you'll be notified as soon as feasible, consistent with PIPEDA's breach notification requirements.</p>
   </section>
 

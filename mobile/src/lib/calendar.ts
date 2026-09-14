@@ -52,6 +52,20 @@ export async function createTransactionEvent(
   return RNCalendarEvents.saveEvent(title, details);
 }
 
+// Best-effort cleanup for an event left behind on a calendar the user has
+// since switched away from (see HomeScreen's pending-events map — an event
+// created but never confirmed, then orphaned by a calendar change before the
+// next sync retried it). Never throws: the old calendar could itself have
+// been deleted, or the event already gone, neither of which should block
+// creating the real event on the calendar the user actually wants now.
+export async function removeTransactionEvent(eventId: string): Promise<void> {
+  try {
+    await RNCalendarEvents.removeEvent(eventId);
+  } catch {
+    // Nothing more to do — see above.
+  }
+}
+
 function formatAmount(amount: number, currency: string | null): string {
   try {
     return new Intl.NumberFormat("en-US", {

@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { RefreshCw, LogOut, CircleCheck, CircleX, Inbox } from "lucide-react-native";
 import { syncTransactions, confirmCalendarEvent } from "../lib/api";
-import { createTransactionEvent } from "../lib/calendar";
+import { createTransactionEvent, removeTransactionEvent } from "../lib/calendar";
 import { getErrorMessage } from "../lib/errors";
 import { supabase } from "../lib/supabase";
 import type { SelectedCalendar, SyncedTransaction } from "../types";
@@ -13,18 +13,35 @@ import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
 
-// transactionId -> calendarEventId for a device-side event that was created
-// but never successfully confirmed with the backend (e.g. the calendar write
-// succeeded, then a network drop or backend hiccup failed the confirm call).
-// Without this, the transaction stays "pending" server-side forever, and the
-// *next* sync fetches it again and creates a SECOND real calendar event for
-// the same real-world transaction — a genuine duplicate, not just a retry.
-// Persisting the mapping before attempting to confirm means a retry (later
-// in this same loop's next run, or a whole new sync) reuses the existing
-// event and just retries the confirm call, instead of creating another one.
+// transactionId -> {eventId, calendarId} for a device-side event that was
+// created but never successfully confirmed with the backend (e.g. the
+// calendar write succeeded, then a network drop or backend hiccup failed the
+// confirm call). Without this, the transaction stays "pending" server-side
+// forever, and the *next* sync fetches it again and creates a SECOND real
+// calendar event for the same real-world transaction — a genuine duplicate,
+// not just a retry. Persisting the mapping before attempting to confirm
+// means a retry (later in this same loop's next run, or a whole new sync)
+// reuses the existing event and just retries the confirm call, instead of
+// creating another one.
+//
+// calendarId is part of the cached entry, not just eventId, because of a
+// real seam with the separate "Change calendar" feature: if the user
+// switches calendars in the window between a create succeeding and its
+// confirm failing, blindly reusing the cached eventId would silently
+// re-confirm an event that still lives on the *old* calendar — the
+// transaction the user now expects on their newly-chosen calendar would
+// stay on the one they explicitly moved away from. Checking the cached
+// calendarId against the current selection catches that: on a mismatch, the
+// stale event is best-effort cleaned up from the old calendar and a fresh
+// one is created on the calendar the user actually picked.
 const PENDING_EVENTS_KEY = "pendingCalendarEvents";
 
-async function getPendingEventMap(): Promise<Record<string, string>> {
+interface PendingEvent {
+  eventId: string;
+  calendarId: string;
+}
+
+async function getPendingEventMap(): Promise<Record<string, PendingEvent>> {
   const raw = await AsyncStorage.getItem(PENDING_EVENTS_KEY);
   if (!raw) return {};
   try {
@@ -36,12 +53,16 @@ async function getPendingEventMap(): Promise<Record<string, string>> {
   }
 }
 
-async function setPendingEvent(map: Record<string, string>, transactionId: string, eventId: string) {
-  map[transactionId] = eventId;
+async function setPendingEvent(
+  map: Record<string, PendingEvent>,
+  transactionId: string,
+  entry: PendingEvent
+) {
+  map[transactionId] = entry;
   await AsyncStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(map));
 }
 
-async function clearPendingEvent(map: Record<string, string>, transactionId: string) {
+async function clearPendingEvent(map: Record<string, PendingEvent>, transactionId: string) {
   delete map[transactionId];
   await AsyncStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(map));
 }
@@ -97,11 +118,18 @@ export default function HomeScreen({ calendar }: Props) {
         for (const txn of response.transactions) {
           try {
             // Reuse an already-created-but-unconfirmed event for this exact
-            // transaction if one exists, rather than creating a new one.
-            let eventId = pendingEvents[txn.id];
+            // transaction if one exists — but only if it's still on the
+            // calendar currently selected. A cached entry from a since-
+            // abandoned calendar (see the type's own comment above) is
+            // cleaned up best-effort and treated as if nothing were cached.
+            const cached = pendingEvents[txn.id];
+            let eventId = cached?.calendarId === calendar.id ? cached.eventId : undefined;
             if (!eventId) {
+              if (cached) {
+                await removeTransactionEvent(cached.eventId);
+              }
               eventId = await createTransactionEvent(calendar.id, txn);
-              await setPendingEvent(pendingEvents, txn.id, eventId);
+              await setPendingEvent(pendingEvents, txn.id, { eventId, calendarId: calendar.id });
             }
             await confirmCalendarEvent(txn.id, eventId);
             await clearPendingEvent(pendingEvents, txn.id);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -21,8 +21,18 @@ interface Props {
 
 export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
   const [loading, setLoading] = useState(false);
+  // `disabled={loading}` alone has a real race window (React state updates
+  // asynchronously) — a double-tap landing before re-render could start two
+  // concurrent Plaid Link sessions, and if both completed, exchange the SAME
+  // bank as two SEPARATE Plaid Items (two distinct public tokens), silently
+  // diarying every one of that bank's transactions twice going forward. A
+  // ref is checked and set synchronously, closing that window outright —
+  // same pattern as HomeScreen's sync guard.
+  const connecting = useRef(false);
 
   async function handleConnectBank() {
+    if (connecting.current) return;
+    connecting.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
     try {
@@ -39,10 +49,12 @@ export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert("Couldn't finish linking", getErrorMessage(err));
           } finally {
+            connecting.current = false;
             setLoading(false);
           }
         },
         onExit: (exit) => {
+          connecting.current = false;
           setLoading(false);
           if (exit.error) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -54,6 +66,7 @@ export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
 
       await session.open();
     } catch (err) {
+      connecting.current = false;
       setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Couldn't start Plaid Link", getErrorMessage(err));
@@ -75,6 +88,9 @@ export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
         style={[styles.button, loading && styles.buttonDisabled]}
         onPress={handleConnectBank}
         disabled={loading}
+        accessibilityRole="button"
+        accessibilityLabel="Connect a bank account"
+        accessibilityState={{ disabled: loading }}
       >
         {loading ? (
           <ActivityIndicator color={theme.pagePlane} />
@@ -83,7 +99,14 @@ export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
         )}
       </Pressable>
       {onCancel && (
-        <Pressable onPress={onCancel} disabled={loading} hitSlop={8} style={styles.cancelButton}>
+        <Pressable
+          onPress={onCancel}
+          disabled={loading}
+          hitSlop={8}
+          style={styles.cancelButton}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+        >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </Pressable>
       )}

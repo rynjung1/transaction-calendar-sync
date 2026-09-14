@@ -101,6 +101,9 @@ export default function AuthScreen() {
             style={[styles.button, styles.primaryButton]}
             onPress={handleSignIn}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in"
+            accessibilityState={{ disabled: loading }}
           >
             {loading ? (
               <ActivityIndicator color={theme.pagePlane} />
@@ -112,12 +115,20 @@ export default function AuthScreen() {
             style={[styles.button, styles.secondaryButton]}
             onPress={handleSignUp}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Sign up"
+            accessibilityState={{ disabled: loading }}
           >
             <Text style={styles.secondaryButtonText}>Sign up</Text>
           </Pressable>
         </View>
 
-        <Pressable onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} hitSlop={8}>
+        <Pressable
+          onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+          hitSlop={8}
+          accessibilityRole="link"
+          accessibilityLabel="Privacy Policy"
+        >
           <Text style={styles.privacyLink}>Privacy Policy</Text>
         </Pressable>
       </KeyboardAvoidingView>

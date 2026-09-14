@@ -22,7 +22,20 @@ const MAX_WEBHOOK_AGE_SECONDS = 5 * 60;
 // Verification keys are long-lived per Plaid's docs — cache by kid so a busy
 // webhook endpoint isn't calling out to Plaid on every request. Cache is
 // per-warm-instance only; a cold start just refetches, which is fine.
-const keyCache = new Map<string, webcrypto.JsonWebKey>();
+//
+// Caching the *expired* verdict alongside the key, not just the key itself —
+// a key's `expired_at` (part of Plaid's own JWKPublicKey type) is a required
+// check per Plaid's verification algorithm, not optional metadata: Plaid can
+// retire a kid (e.g. after a suspected compromise) while its signature would
+// still validate cryptographically. A kid that's expired stays expired
+// permanently — it never comes back into service under a rotated key — so
+// caching that fact is both correct and means a replayed JWT for a
+// known-retired kid is rejected without even calling Plaid again.
+interface CachedVerificationKey {
+  jwk: webcrypto.JsonWebKey;
+  expiredAt: number | null;
+}
+const keyCache = new Map<string, CachedVerificationKey>();
 
 export class WebhookVerificationError extends Error {}
 
@@ -30,15 +43,18 @@ function base64UrlDecode(input: string): Buffer {
   return Buffer.from(input, "base64url");
 }
 
-async function getVerificationKey(keyId: string): Promise<webcrypto.JsonWebKey> {
+async function getVerificationKey(keyId: string): Promise<CachedVerificationKey> {
   const cached = keyCache.get(keyId);
   if (cached) {
     return cached;
   }
   const response = await plaidClient.webhookVerificationKeyGet({ key_id: keyId });
-  const jwk = response.data.key as unknown as webcrypto.JsonWebKey;
-  keyCache.set(keyId, jwk);
-  return jwk;
+  const entry: CachedVerificationKey = {
+    jwk: response.data.key as unknown as webcrypto.JsonWebKey,
+    expiredAt: response.data.key.expired_at ?? null,
+  };
+  keyCache.set(keyId, entry);
+  return entry;
 }
 
 export async function verifyPlaidWebhook(req: VercelRequest, rawBody: Buffer): Promise<void> {
@@ -67,8 +83,11 @@ export async function verifyPlaidWebhook(req: VercelRequest, rawBody: Buffer): P
     throw new WebhookVerificationError("Unexpected JWT header");
   }
 
-  const jwk = await getVerificationKey(jwtHeader.kid);
-  const publicKey = createPublicKey({ key: jwk, format: "jwk" });
+  const keyEntry = await getVerificationKey(jwtHeader.kid);
+  if (keyEntry.expiredAt !== null) {
+    throw new WebhookVerificationError("Verification key has expired");
+  }
+  const publicKey = createPublicKey({ key: keyEntry.jwk, format: "jwk" });
 
   // ES256 JWT signatures are raw r||s (IEEE P1363), not the DER encoding
   // Node's crypto.verify() defaults to — must be set explicitly or every

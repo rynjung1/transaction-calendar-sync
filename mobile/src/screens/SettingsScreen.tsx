@@ -87,7 +87,12 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
   }
 
   async function handleSave() {
-    const minAmount = Number(minAmountText);
+    // keyboardType="decimal-pad" shows the OS's locale-appropriate decimal
+    // separator — on a French-Canadian device (relevant: this app's bank is
+    // Canadian) that's a comma, e.g. "12,50". Number() only ever understands
+    // a period, so a normal amount typed on the exact keyboard this screen
+    // itself presents would otherwise fail as "Invalid amount".
+    const minAmount = Number(minAmountText.replace(",", "."));
     if (!Number.isFinite(minAmount) || minAmount < 0 || minAmount > MAX_MIN_AMOUNT) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
@@ -139,14 +144,27 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
     setDeleting(true);
     try {
       await deleteAccount();
-      // The account (and its session) no longer exists server-side — clear
-      // the local session too so App.tsx's auth listener sends the user back
-      // to the sign-in screen instead of holding a session for a deleted user.
-      await supabase.auth.signOut();
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Couldn't delete account", getErrorMessage(err));
       setDeleting(false);
+      return;
+    }
+
+    // The account is confirmed deleted server-side by this point — a
+    // failure past here is a different, much less important problem, and
+    // must never be reported as "couldn't delete account" (a false
+    // negative on something that already succeeded). Separate try/catch,
+    // not just a second statement in the block above, since an unhandled
+    // throw here would otherwise land in the same catch as a real deletion
+    // failure. supabase-js's signOut() already treats a 404/401/403 (exactly
+    // what deleting the user produces) as expected and won't throw for it —
+    // this only guards the unusual case of a genuine exception (e.g. a
+    // SecureStore failure while clearing the local session).
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Sign-out after account deletion failed (account was still deleted)", err);
     }
   }
 
@@ -221,7 +239,14 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
           }}
         />
 
-        <Pressable style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={handleSave} disabled={saving}>
+        <Pressable
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Save"
+          accessibilityState={{ disabled: saving }}
+        >
           {saving ? (
             <ActivityIndicator color={theme.pagePlane} />
           ) : (
@@ -229,11 +254,21 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
           )}
         </Pressable>
 
-        <Pressable style={styles.addAccountButton} onPress={onAddAccount}>
+        <Pressable
+          style={styles.addAccountButton}
+          onPress={onAddAccount}
+          accessibilityRole="button"
+          accessibilityLabel="Add another bank account"
+        >
           <Text style={styles.addAccountButtonText}>Add another bank account</Text>
         </Pressable>
 
-        <Pressable style={styles.addAccountButton} onPress={handleChangeCalendar}>
+        <Pressable
+          style={styles.addAccountButton}
+          onPress={handleChangeCalendar}
+          accessibilityRole="button"
+          accessibilityLabel="Change calendar"
+        >
           <Text style={styles.addAccountButtonText}>Change calendar</Text>
         </Pressable>
 
@@ -241,6 +276,9 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
           style={[styles.deleteButton, deleting && styles.saveButtonDisabled]}
           onPress={handleDeleteAccount}
           disabled={deleting}
+          accessibilityRole="button"
+          accessibilityLabel="Delete account"
+          accessibilityState={{ disabled: deleting }}
         >
           {deleting ? (
             <ActivityIndicator color={theme.statusDanger} />

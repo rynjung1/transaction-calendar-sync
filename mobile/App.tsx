@@ -60,20 +60,32 @@ export default function App() {
       if (!data.session) setBooting(false);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
       if (!next) {
         setLinked(false);
         setNeedsReauth(false);
         setCalendar(null);
         setBooting(false);
-      } else {
+      } else if (event === "SIGNED_IN") {
         // A fresh sign-in mid-session (switching accounts, or right after
         // Settings -> Delete account signs the old session out) needs the
         // same "don't render until the real state is known" gate as cold
         // launch — otherwise `linked` is still reset to false from the
         // prior sign-out and flashes "Connect your bank" on an account
         // that's actually already linked, while the status check catches up.
+        //
+        // Gated on the actual event now, not "any truthy session" — this
+        // callback also fires for TOKEN_REFRESHED (routine, roughly hourly
+        // via autoRefreshToken: true), USER_UPDATED, and INITIAL_SESSION,
+        // none of which mean "the user just signed in". Treating any of
+        // those as a fresh sign-in re-armed `booting`, which unmounts and
+        // remounts the entire app (App.tsx renders a bare spinner while
+        // booting) — discarding every screen's local state and any in-flight
+        // work (e.g. a sync mid-loop) for no reason tied to anything the
+        // user did. Plausibly the real cause of the transient "401 right
+        // after sign-in, fixed by retrying" symptom seen during live
+        // testing, not just a UI flash.
         setBooting(true);
       }
     });
@@ -259,17 +271,35 @@ function AppContent({
             )}
           </View>
           <View style={[styles.tabBar, { paddingBottom: insets.bottom }]}>
-            <Pressable style={styles.tabButton} onPress={() => setTab("home")}>
+            <Pressable
+              style={styles.tabButton}
+              onPress={() => setTab("home")}
+              accessibilityRole="tab"
+              accessibilityLabel="Home"
+              accessibilityState={{ selected: tab === "home" }}
+            >
               <House size={22} color={tab === "home" ? theme.textPrimary : theme.textMuted} />
               <Text style={[styles.tabLabel, tab === "home" && styles.tabLabelActive]}>Home</Text>
             </Pressable>
-            <Pressable style={styles.tabButton} onPress={() => setTab("insights")}>
+            <Pressable
+              style={styles.tabButton}
+              onPress={() => setTab("insights")}
+              accessibilityRole="tab"
+              accessibilityLabel="Insights"
+              accessibilityState={{ selected: tab === "insights" }}
+            >
               <ChartColumn size={22} color={tab === "insights" ? theme.textPrimary : theme.textMuted} />
               <Text style={[styles.tabLabel, tab === "insights" && styles.tabLabelActive]}>
                 Insights
               </Text>
             </Pressable>
-            <Pressable style={styles.tabButton} onPress={() => setTab("settings")}>
+            <Pressable
+              style={styles.tabButton}
+              onPress={() => setTab("settings")}
+              accessibilityRole="tab"
+              accessibilityLabel="Settings"
+              accessibilityState={{ selected: tab === "settings" }}
+            >
               <Settings size={22} color={tab === "settings" ? theme.textPrimary : theme.textMuted} />
               <Text style={[styles.tabLabel, tab === "settings" && styles.tabLabelActive]}>
                 Settings
@@ -317,5 +347,9 @@ const styles = StyleSheet.create({
   },
   tabButton: { flex: 1, paddingTop: spacing.sm, alignItems: "center", gap: 2 },
   tabLabel: { ...typography.xs, color: theme.textMuted },
-  tabLabelActive: { color: theme.textPrimary },
+  // fontWeight, not just color, distinguishes the active tab — color alone
+  // is invisible to anyone who can't perceive the textMuted/textPrimary
+  // difference (and accessibilityState={{selected}} above covers screen
+  // readers specifically; this covers sighted low-contrast-perception cases).
+  tabLabelActive: { color: theme.textPrimary, fontWeight: "600" },
 });

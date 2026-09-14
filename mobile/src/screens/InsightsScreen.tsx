@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -84,37 +84,57 @@ export default function InsightsScreen() {
   const [transactions, setTransactions] = useState<MonthlyTransaction[]>([]);
   const [previousMonthTotal, setPreviousMonthTotal] = useState(0);
 
-  async function fetchMonth(m: string) {
+  // A request-token guard, not just the effect's own `cancelled` flag — that
+  // flag only ever protected `loading`/`error`, never the actual
+  // `setTransactions`/`setPreviousMonthTotal` calls below, since those ran
+  // unconditionally inside `fetchMonth` itself. Two fetches can race for real:
+  // changing months quickly re-fires the effect while an older request for a
+  // previous month is still in flight, and pull-to-refresh calls `fetchMonth`
+  // independently of the effect entirely. Whichever response happened to
+  // resolve *last* would win and overwrite the screen with stale data,
+  // regardless of which month is actually selected by then. Tagging every
+  // call with an incrementing id and only applying a response if no newer
+  // call has started since fixes both call sites at once.
+  const latestRequestId = useRef(0);
+
+  // The caller increments and captures the request id *synchronously*,
+  // before the request starts, and passes it in — a single point of
+  // increment, so there's never a gap where a caller doesn't yet know which
+  // id its own call is using (which a "fetchMonth returns its id" design
+  // would have: if the request rejects, a .then(id => ...) handler never
+  // runs, so the id would be unknown in .catch exactly when staleness
+  // matters most).
+  async function fetchMonth(m: string, requestId: number) {
     const res = await getMonthlyTransactions(m);
-    setTransactions(res.transactions);
-    setPreviousMonthTotal(res.previousMonthTotal);
+    if (requestId === latestRequestId.current) {
+      setTransactions(res.transactions);
+      setPreviousMonthTotal(res.previousMonthTotal);
+    }
   }
 
   useEffect(() => {
-    let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchMonth(month)
+    const requestId = ++latestRequestId.current;
+    fetchMonth(month, requestId)
       .catch((err) => {
-        if (!cancelled) setError(getErrorMessage(err));
+        if (requestId === latestRequestId.current) setError(getErrorMessage(err));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (requestId === latestRequestId.current) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [month]);
 
   async function handleRefresh() {
     setRefreshing(true);
+    const requestId = ++latestRequestId.current;
     try {
-      await fetchMonth(month);
-      setError(null);
+      await fetchMonth(month, requestId);
+      if (requestId === latestRequestId.current) setError(null);
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (requestId === latestRequestId.current) setError(getErrorMessage(err));
     } finally {
-      setRefreshing(false);
+      if (requestId === latestRequestId.current) setRefreshing(false);
     }
   }
 

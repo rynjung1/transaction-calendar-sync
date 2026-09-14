@@ -22,7 +22,17 @@ import type { SelectedCalendar } from "./src/types";
 
 type Tab = "home" | "insights" | "settings";
 
-const CALENDAR_STORAGE_KEY = "selectedCalendar";
+// Scoped per-user, not a single global key — a plain "selectedCalendar" key
+// meant this device silently carried one account's calendar choice into
+// whatever account was signed in next: delete your account and sign up
+// fresh on the same device, and the new account inherited the deleted
+// one's calendar choice, skipping the picker (and its privacy confirmation)
+// entirely; on a shared device, signing in as a second account could do the
+// same thing to a returning first account's own prior choice. Never
+// specific to one user before, even though "which calendar" plainly is.
+function calendarStorageKey(userId: string): string {
+  return `selectedCalendar:${userId}`;
+}
 
 export default function App() {
   // `booting` covers the *entire* "do we actually know this user's state
@@ -120,9 +130,10 @@ export default function App() {
   }, [session, statusCheckAttempt]);
 
   useEffect(() => {
-    if (!linked) return;
+    if (!linked || !session) return;
     let cancelled = false;
-    AsyncStorage.getItem(CALENDAR_STORAGE_KEY).then((raw) => {
+    const key = calendarStorageKey(session.user.id);
+    AsyncStorage.getItem(key).then((raw) => {
       if (cancelled || !raw) return;
       try {
         setCalendar(JSON.parse(raw));
@@ -131,16 +142,17 @@ export default function App() {
         // from an older version) — treat as "no calendar chosen yet" rather
         // than let JSON.parse throw inside this unhandled promise callback.
         // The picker just runs again; nothing the user did caused this.
-        AsyncStorage.removeItem(CALENDAR_STORAGE_KEY);
+        AsyncStorage.removeItem(key);
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [linked]);
+  }, [linked, session]);
 
   async function handleCalendarSelected(selected: SelectedCalendar) {
-    await AsyncStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(selected));
+    if (!session) return;
+    await AsyncStorage.setItem(calendarStorageKey(session.user.id), JSON.stringify(selected));
     setCalendar(selected);
   }
 
@@ -151,7 +163,8 @@ export default function App() {
   // wanting to switch calendars, or the chosen calendar being deleted from
   // the device were all unrecoverable short of reinstalling the app.
   async function handleChangeCalendar() {
-    await AsyncStorage.removeItem(CALENDAR_STORAGE_KEY);
+    if (!session) return;
+    await AsyncStorage.removeItem(calendarStorageKey(session.user.id));
     setCalendar(null);
   }
 

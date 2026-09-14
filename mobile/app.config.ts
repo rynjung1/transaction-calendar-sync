@@ -76,6 +76,12 @@ const config: ExpoConfig = {
     apiBaseUrl: "https://backend-theta-fawn-72.vercel.app",
     supabaseUrl: "https://qddrlqlbjzhmjwotgmbc.supabase.co",
     supabaseAnonKey: "sb_publishable_lc7XV6Vq2hy-MyAbwJvJAA_tQPwrkeK",
+    // A Sentry DSN is a *publishable* identifier by design (like the Plaid/
+    // Supabase values above) — it only lets a client send events to this
+    // project, not read or manage anything, so it's safe to embed the same
+    // way. Empty until a real project exists; sentry.ts no-ops on an empty
+    // DSN rather than erroring, so this is safe to ship either way.
+    sentryDsn: "",
     eas: {
       projectId: "4b6f7547-bd97-456d-8db2-77c16280ab11",
     },

@@ -35,6 +35,12 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [linked, setLinked] = useState(false);
+  // True when at least one linked bank needs to be reconnected (Plaid
+  // ITEM_LOGIN_REQUIRED/ERROR) — distinct from `linked`, which only means
+  // "has completed onboarding at least once". See plaid/status.ts for why
+  // conflating the two used to send an already-linked user with a broken
+  // connection back through first-link onboarding.
+  const [needsReauth, setNeedsReauth] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusCheckAttempt, setStatusCheckAttempt] = useState(0);
   const [calendar, setCalendar] = useState<SelectedCalendar | null>(null);
@@ -58,6 +64,7 @@ export default function App() {
       setSession(next);
       if (!next) {
         setLinked(false);
+        setNeedsReauth(false);
         setCalendar(null);
         setBooting(false);
       } else {
@@ -82,6 +89,7 @@ export default function App() {
       .then((status) => {
         if (cancelled) return;
         setLinked(status.linked);
+        setNeedsReauth(status.needsReauth);
       })
       .catch((err) => {
         // A network hiccup or transient server error is not the same thing
@@ -153,6 +161,7 @@ export default function App() {
       <AppContent
         session={session}
         linked={linked}
+        needsReauth={needsReauth}
         calendar={calendar}
         tab={tab}
         setTab={setTab}
@@ -168,6 +177,7 @@ export default function App() {
 interface AppContentProps {
   session: Session | null;
   linked: boolean;
+  needsReauth: boolean;
   calendar: SelectedCalendar | null;
   tab: Tab;
   setTab: (tab: Tab) => void;
@@ -180,6 +190,7 @@ interface AppContentProps {
 function AppContent({
   session,
   linked,
+  needsReauth,
   calendar,
   tab,
   setTab,
@@ -205,6 +216,25 @@ function AppContent({
         />
       ) : (
         <View style={styles.tabbedContainer}>
+          {needsReauth && (
+            // No dedicated "reconnect" flow exists yet — the broken item is
+            // excluded from every future sync (plaid/sync.ts only syncs
+            // status="active" items), so it just goes quiet rather than
+            // erroring repeatedly. Relinking via Settings' existing "Add
+            // another bank account" is a safe way to restore that bank:
+            // the old, broken item stays inert (never synced again), so
+            // there's no duplicate-transaction risk in doing that.
+            <Pressable
+              style={styles.reauthBanner}
+              onPress={() => setTab("settings")}
+              accessibilityRole="button"
+              accessibilityLabel="One of your banks needs attention. Go to Settings."
+            >
+              <Text style={styles.reauthBannerText}>
+                One of your banks needs to be reconnected — tap to fix in Settings.
+              </Text>
+            </Pressable>
+          )}
           <View style={styles.screenArea}>
             {tab === "home" ? (
               <HomeScreen calendar={calendar} />
@@ -258,6 +288,12 @@ const styles = StyleSheet.create({
   },
   retryButtonText: { ...typography.sm, color: theme.pagePlane },
   tabbedContainer: { flex: 1 },
+  reauthBanner: {
+    backgroundColor: theme.statusDanger,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  reauthBannerText: { ...typography.xs, color: theme.pagePlane, textAlign: "center" },
   screenArea: { flex: 1 },
   tabBar: {
     flexDirection: "row",

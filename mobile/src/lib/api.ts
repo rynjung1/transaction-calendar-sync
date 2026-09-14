@@ -71,7 +71,7 @@ async function authedFetch(path: string, options: RequestInit = {}) {
   return res.json();
 }
 
-export function getPlaidStatus(): Promise<{ linked: boolean }> {
+export function getPlaidStatus(): Promise<{ linked: boolean; needsReauth: boolean }> {
   return authedFetch("/api/plaid/status", { method: "GET" });
 }
 

@@ -54,9 +54,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Pull the initial batch of transactions right away rather than waiting
-    // on Plaid's first SYNC_UPDATES_AVAILABLE webhook.
-    const filters = await getSyncFilters(user.id);
-    await syncPlaidItem(inserted, filters);
+    // on Plaid's first SYNC_UPDATES_AVAILABLE webhook. Best-effort only: the
+    // plaid_items row above is what actually constitutes "linked" — a
+    // transient failure here (a Plaid hiccup, a momentary DB blip) must not
+    // fail the whole request, since the item is already genuinely linked at
+    // this point. Failing loudly here previously reported "couldn't link
+    // account" to the user even though linking had already succeeded, and
+    // left them free to retry Link from scratch — creating a second Plaid
+    // item for the same bank and risking duplicate synced transactions later
+    // (dedup is per-item). The regular webhook/pull-to-refresh sync path
+    // will pick this item up regardless.
+    try {
+      const filters = await getSyncFilters(user.id);
+      await syncPlaidItem(inserted, filters);
+    } catch (err) {
+      console.error("Initial sync after linking failed (non-fatal)", err);
+    }
 
     return res.status(200).json({ ok: true });
   } catch (err) {

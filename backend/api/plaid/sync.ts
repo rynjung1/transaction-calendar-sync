@@ -29,8 +29,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // own comment for why that matters once a user has more than one
       // linked item. Skipped entirely when there's nothing to sync.
       const filters = await getSyncFilters(user.id);
+      // Per-item, not a single failure-propagates-to-all loop: a multi-account
+      // user (a supported, real scenario) would otherwise get zero
+      // transactions from ANY of their banks whenever just one item hit a
+      // transient Plaid error (rate limit, momentary network blip) — the
+      // healthy items' data was already fetched and stored by the time the
+      // failing one threw, but the whole request still 500'd before ever
+      // returning it. Each item's own failure is logged and skipped; it
+      // simply gets retried on the next sync (its cursor wasn't advanced).
       for (const item of items) {
-        await syncPlaidItem(item, filters);
+        try {
+          await syncPlaidItem(item, filters);
+        } catch (err) {
+          console.error(`Sync failed for plaid_items.id=${item.id} (continuing with other items)`, err);
+        }
       }
     }
 

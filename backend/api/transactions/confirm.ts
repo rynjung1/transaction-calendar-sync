@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { transactionId, calendarEventId } = req.body ?? {};
-  if (!transactionId || !calendarEventId) {
+  if (typeof transactionId !== "string" || !transactionId || typeof calendarEventId !== "string" || !calendarEventId) {
     return res.status(400).json({ error: "Missing transactionId or calendarEventId" });
   }
 

@@ -65,9 +65,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw prevError;
     }
 
-    const previousMonthTotal = (prevTransactions ?? [])
-      .filter((txn) => txn.amount > 0)
-      .reduce((sum, txn) => sum + Number(txn.amount), 0);
+    // `amount` is a Postgres `numeric`, but PostgREST serializes it as a
+    // bare JSON number, so it's already a JS double by the time it's summed
+    // here — repeated float addition over enough rows can land on something
+    // like 1200.9999999999998 instead of the exact 1201.00. Rounding to
+    // cents is exact here (unlike the general case of rounding a float) since
+    // the error is always sub-cent — this is the one value in the endpoint
+    // that's an aggregate rather than a passthrough of a single DB value.
+    const previousMonthTotal =
+      Math.round(
+        (prevTransactions ?? [])
+          .filter((txn) => txn.amount > 0)
+          .reduce((sum, txn) => sum + Number(txn.amount), 0) * 100
+      ) / 100;
 
     return res.status(200).json({
       month,

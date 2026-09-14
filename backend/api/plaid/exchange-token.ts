@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { publicToken } = req.body ?? {};
-  if (!publicToken) {
+  if (typeof publicToken !== "string" || !publicToken) {
     return res.status(400).json({ error: "Missing publicToken" });
   }
 

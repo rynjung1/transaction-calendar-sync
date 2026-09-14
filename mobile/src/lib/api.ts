@@ -8,6 +8,22 @@ if (!apiBaseUrl) {
   throw new Error("Missing apiBaseUrl in app.json > expo.extra");
 }
 
+async function sendRequest(path: string, options: RequestInit, accessToken: string): Promise<Response> {
+  try {
+    return await fetch(`${apiBaseUrl}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        ...options.headers,
+      },
+    });
+  } catch (err) {
+    console.error(`Network error calling ${path}`, err);
+    throw new Error("Couldn't reach the server. Check your connection and try again.");
+  }
+}
+
 async function authedFetch(path: string, options: RequestInit = {}) {
   const {
     data: { session },
@@ -17,19 +33,20 @@ async function authedFetch(path: string, options: RequestInit = {}) {
     throw new Error("You're signed out — please sign in again.");
   }
 
-  let res: Response;
-  try {
-    res = await fetch(`${apiBaseUrl}${path}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-        ...options.headers,
-      },
-    });
-  } catch (err) {
-    console.error(`Network error calling ${path}`, err);
-    throw new Error("Couldn't reach the server. Check your connection and try again.");
+  let res = await sendRequest(path, options, session.access_token);
+
+  // A 401 right after a real sign-in has been observed in practice with a
+  // freshly-issued, otherwise-valid token — a plain retry (no code change)
+  // succeeded, pointing at some transient lag rather than a bad token. Force
+  // a session refresh and retry exactly once before treating it as a real
+  // auth failure, since a silent one-shot recovery here beats surfacing
+  // "Invalid or expired session" to the user for something that clears
+  // itself moments later.
+  if (res.status === 401) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    if (refreshed.session) {
+      res = await sendRequest(path, options, refreshed.session.access_token);
+    }
   }
 
   if (!res.ok) {

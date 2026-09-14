@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../../lib/supabase";
 import { encrypt } from "../../lib/crypto";
 import { requireUser, UnauthorizedError } from "../../lib/auth";
 import { getSyncFilters, syncPlaidItem } from "../../lib/plaidSync";
+import { safeErrorInfo } from "../../lib/logging";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -68,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const filters = await getSyncFilters(user.id);
       await syncPlaidItem(inserted, filters);
     } catch (err) {
-      console.error("Initial sync after linking failed (non-fatal)", err);
+      console.error("Initial sync after linking failed (non-fatal)", safeErrorInfo(err));
     }
 
     return res.status(200).json({ ok: true });
@@ -76,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (err instanceof UnauthorizedError) {
       return res.status(401).json({ error: err.message });
     }
-    console.error("exchange-token failed", err);
+    console.error("exchange-token failed", safeErrorInfo(err));
     return res.status(500).json({ error: "Failed to link account" });
   }
 }

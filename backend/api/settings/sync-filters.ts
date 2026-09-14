@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabaseAdmin } from "../../lib/supabase";
 import { requireUser, UnauthorizedError } from "../../lib/auth";
+import { safeErrorInfo } from "../../lib/logging";
 import { PFC_PRIMARY_CATEGORIES, isPfcPrimaryCategory } from "../../lib/plaidCategories";
 import type { SyncFilters } from "../../lib/plaidSync";
 
@@ -102,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 500 rather than a 400. Low priority — the mobile client always sends
     // well-formed JSON — but worth a dedicated JSON.parse try/catch if this
     // endpoint ever gets a less-trusted caller.
-    console.error("sync-filters failed", err);
+    console.error("sync-filters failed", safeErrorInfo(err));
     return res.status(500).json({ error: "Failed to process sync_filters request" });
   }
 }

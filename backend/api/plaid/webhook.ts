@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabaseAdmin } from "../../lib/supabase";
 import { getSyncFilters, syncPlaidItem } from "../../lib/plaidSync";
 import { verifyPlaidWebhook, WebhookVerificationError } from "../../lib/plaidWebhookVerify";
+import { safeErrorInfo } from "../../lib/logging";
 
 // @vercel/node fully buffers the request body before the handler runs and
 // replays it on `req` as a real readable stream (independent of the already-
@@ -36,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.warn("Rejected webhook: failed verification —", err.message);
       return res.status(401).json({ error: "Failed verification" });
     }
-    console.error("webhook verification error", err);
+    console.error("webhook verification error", safeErrorInfo(err));
     return res.status(400).json({ error: "Failed to verify webhook" });
   }
 
@@ -75,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error("webhook handling failed", err);
+    console.error("webhook handling failed", safeErrorInfo(err));
     // Plaid retries on non-2xx, so still ack receipt to avoid retry storms
     // for errors that won't resolve on retry (e.g. decryption failures).
     return res.status(200).json({ ok: false });

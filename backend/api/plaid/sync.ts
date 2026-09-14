@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabaseAdmin } from "../../lib/supabase";
 import { requireUser, UnauthorizedError } from "../../lib/auth";
 import { getSyncFilters, syncPlaidItem } from "../../lib/plaidSync";
+import { safeErrorInfo } from "../../lib/logging";
 
 // User-initiated refresh (e.g. pull-to-refresh). Not a timer poll — Plaid
 // still notifies us of background updates via the SYNC_UPDATES_AVAILABLE
@@ -41,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           await syncPlaidItem(item, filters);
         } catch (err) {
-          console.error(`Sync failed for plaid_items.id=${item.id} (continuing with other items)`, err);
+          console.error(`Sync failed for plaid_items.id=${item.id} (continuing with other items)`, safeErrorInfo(err));
         }
       }
     }
@@ -77,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (err instanceof UnauthorizedError) {
       return res.status(401).json({ error: err.message });
     }
-    console.error("sync failed", err);
+    console.error("sync failed", safeErrorInfo(err));
     return res.status(500).json({ error: "Failed to sync transactions" });
   }
 }

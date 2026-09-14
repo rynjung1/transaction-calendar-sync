@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabaseAdmin } from "../../lib/supabase";
 import { requireUser, UnauthorizedError } from "../../lib/auth";
+import { safeErrorInfo } from "../../lib/logging";
 
 function monthRange(month: string): { start: string; end: string } {
   const [year, mon] = month.split("-").map(Number);
@@ -86,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (err instanceof UnauthorizedError) {
       return res.status(401).json({ error: err.message });
     }
-    console.error("monthly failed", err);
+    console.error("monthly failed", safeErrorInfo(err));
     return res.status(500).json({ error: "Failed to load monthly transactions" });
   }
 }

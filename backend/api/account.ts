@@ -3,6 +3,7 @@ import { plaidClient } from "../lib/plaid";
 import { supabaseAdmin } from "../lib/supabase";
 import { decrypt } from "../lib/crypto";
 import { requireUser, UnauthorizedError } from "../lib/auth";
+import { safeErrorInfo } from "../lib/logging";
 
 // Account deletion — required both by PIPEDA's retention principle and by
 // App Store Guideline 5.1.1(v) (an app that supports account creation must
@@ -46,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const accessToken = decrypt(item.access_token_encrypted);
         await plaidClient.itemRemove({ access_token: accessToken });
       } catch (err) {
-        console.error("Failed to remove Plaid item during account deletion", err);
+        console.error("Failed to remove Plaid item during account deletion", safeErrorInfo(err));
       }
     }
 
@@ -60,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (err instanceof UnauthorizedError) {
       return res.status(401).json({ error: err.message });
     }
-    console.error("account deletion failed", err);
+    console.error("account deletion failed", safeErrorInfo(err));
     return res.status(500).json({ error: "Failed to delete account" });
   }
 }

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabaseAdmin } from "../../lib/supabase";
 import { requireUser, UnauthorizedError } from "../../lib/auth";
+import { safeErrorInfo } from "../../lib/logging";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -40,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (err instanceof UnauthorizedError) {
       return res.status(401).json({ error: err.message });
     }
-    console.error("status failed", err);
+    console.error("status failed", safeErrorInfo(err));
     return res.status(500).json({ error: "Failed to check status" });
   }
 }

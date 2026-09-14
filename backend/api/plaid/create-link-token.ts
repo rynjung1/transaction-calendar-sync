@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { CountryCode, Products } from "plaid";
 import { plaidClient } from "../../lib/plaid";
 import { requireUser, UnauthorizedError } from "../../lib/auth";
+import { safeErrorInfo } from "../../lib/logging";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -25,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (err instanceof UnauthorizedError) {
       return res.status(401).json({ error: err.message });
     }
-    console.error("create-link-token failed", err);
+    console.error("create-link-token failed", safeErrorInfo(err));
     return res.status(500).json({ error: "Failed to create link token" });
   }
 }

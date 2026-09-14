@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabaseAdmin } from "../../lib/supabase";
 import { requireUser, UnauthorizedError } from "../../lib/auth";
+import { safeErrorInfo } from "../../lib/logging";
 
 // Marks a transaction as written to the user's calendar, recording the
 // device calendar event id so we don't recreate it on a later sync.
@@ -32,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (err instanceof UnauthorizedError) {
       return res.status(401).json({ error: err.message });
     }
-    console.error("confirm failed", err);
+    console.error("confirm failed", safeErrorInfo(err));
     return res.status(500).json({ error: "Failed to confirm transaction" });
   }
 }

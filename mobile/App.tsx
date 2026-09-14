@@ -132,6 +132,17 @@ export default function App() {
     setCalendar(selected);
   }
 
+  // Previously there was no way back to CalendarPickerScreen at all once a
+  // calendar was chosen — not even signing out and back in, since that only
+  // reset the in-memory `calendar` state, not the persisted AsyncStorage
+  // value the next sign-in would just reload. A mis-tap during onboarding,
+  // wanting to switch calendars, or the chosen calendar being deleted from
+  // the device were all unrecoverable short of reinstalling the app.
+  async function handleChangeCalendar() {
+    await AsyncStorage.removeItem(CALENDAR_STORAGE_KEY);
+    setCalendar(null);
+  }
+
   if (booting) {
     return (
       <View style={styles.center}>
@@ -167,6 +178,7 @@ export default function App() {
         setTab={setTab}
         setLinked={setLinked}
         onCalendarSelected={handleCalendarSelected}
+        onChangeCalendar={handleChangeCalendar}
         addingAccount={addingAccount}
         setAddingAccount={setAddingAccount}
       />
@@ -183,6 +195,7 @@ interface AppContentProps {
   setTab: (tab: Tab) => void;
   setLinked: (linked: boolean) => void;
   onCalendarSelected: (calendar: SelectedCalendar) => void;
+  onChangeCalendar: () => void;
   addingAccount: boolean;
   setAddingAccount: (adding: boolean) => void;
 }
@@ -196,6 +209,7 @@ function AppContent({
   setTab,
   setLinked,
   onCalendarSelected,
+  onChangeCalendar,
   addingAccount,
   setAddingAccount,
 }: AppContentProps) {
@@ -241,7 +255,7 @@ function AppContent({
             ) : tab === "insights" ? (
               <InsightsScreen />
             ) : (
-              <SettingsScreen onAddAccount={() => setAddingAccount(true)} />
+              <SettingsScreen onAddAccount={() => setAddingAccount(true)} onChangeCalendar={onChangeCalendar} />
             )}
           </View>
           <View style={[styles.tabBar, { paddingBottom: insets.bottom }]}>

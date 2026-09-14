@@ -37,9 +37,10 @@ const MAX_MIN_AMOUNT = 1_000_000;
 
 interface Props {
   onAddAccount: () => void;
+  onChangeCalendar: () => void;
 }
 
-export default function SettingsScreen({ onAddAccount }: Props) {
+export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -108,6 +109,18 @@ export default function SettingsScreen({ onAddAccount }: Props) {
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleChangeCalendar() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert(
+      "Change calendar?",
+      "You'll be asked to pick a calendar again before any new transactions sync. Events already added to your current calendar stay there.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Change calendar", onPress: onChangeCalendar },
+      ]
+    );
   }
 
   function handleDeleteAccount() {
@@ -218,6 +231,10 @@ export default function SettingsScreen({ onAddAccount }: Props) {
 
         <Pressable style={styles.addAccountButton} onPress={onAddAccount}>
           <Text style={styles.addAccountButtonText}>Add another bank account</Text>
+        </Pressable>
+
+        <Pressable style={styles.addAccountButton} onPress={handleChangeCalendar}>
+          <Text style={styles.addAccountButtonText}>Change calendar</Text>
         </Pressable>
 
         <Pressable

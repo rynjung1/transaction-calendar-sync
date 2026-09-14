@@ -43,9 +43,19 @@ async function authedFetch(path: string, options: RequestInit = {}) {
   // "Invalid or expired session" to the user for something that clears
   // itself moments later.
   if (res.status === 401) {
-    const { data: refreshed } = await supabase.auth.refreshSession();
-    if (refreshed.session) {
-      res = await sendRequest(path, options, refreshed.session.access_token);
+    try {
+      // refreshSession() throws (rather than returning {error}) for some
+      // failure modes — e.g. a network error during the refresh call itself,
+      // per its own docs. Falling through to the normal error handling below
+      // using the original (still 401) response is the right outcome either
+      // way, not a raw/inconsistent error shape from a failed recovery
+      // attempt on top of the original failure.
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) {
+        res = await sendRequest(path, options, refreshed.session.access_token);
+      }
+    } catch (refreshErr) {
+      console.error("Session refresh after 401 failed", refreshErr);
     }
   }
 

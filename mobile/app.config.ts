@@ -82,6 +82,13 @@ const config: ExpoConfig = {
     // way. Empty until a real project exists; sentry.ts no-ops on an empty
     // DSN rather than erroring, so this is safe to ship either way.
     sentryDsn: "",
+    // Same posture as sentryDsn above: a Turnstile *site* key is meant to be
+    // public/embeddable (Cloudflare's own docs are explicit about this —
+    // it's the *secret* key, entered in the Supabase dashboard's Attack
+    // Protection settings and never touching this codebase, that must stay
+    // private). Empty until Turnstile is set up; AuthScreen skips the
+    // challenge entirely on an empty key rather than erroring.
+    turnstileSiteKey: "",
     eas: {
       projectId: "4b6f7547-bd97-456d-8db2-77c16280ab11",
     },

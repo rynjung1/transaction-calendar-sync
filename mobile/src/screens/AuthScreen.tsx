@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,20 +12,44 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import { Mail, Lock } from "lucide-react-native";
 import { supabase } from "../lib/supabase";
+import { getErrorMessage } from "../lib/errors";
+import TurnstileChallenge, { TurnstileChallengeHandle } from "../components/TurnstileChallenge";
 import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
 
 const PRIVACY_POLICY_URL = "https://claude.ai/code/artifact/4e325609-3c98-4037-a842-c39e4b7fce07";
 const TERMS_OF_SERVICE_URL = "https://claude.ai/code/artifact/33d1e392-0850-42bf-b17f-75cc5456d2b9";
+const TURNSTILE_SITE_KEY: string = Constants.expoConfig?.extra?.turnstileSiteKey ?? "";
 
 export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const turnstileRef = useRef<TurnstileChallengeHandle>(null);
+
+  // Empty until Turnstile is actually set up (see app.config.ts) — skips the
+  // challenge entirely rather than blocking sign-in/sign-up on a feature
+  // that isn't configured yet. Once a real site key exists, every
+  // credentialed auth attempt requires solving it first, which is the whole
+  // point: Supabase's own brute-force/rate-limit protection is IP-based and
+  // off by default for CAPTCHA specifically (confirmed against Supabase's
+  // own docs and community-reported pentest findings, not assumed) — this
+  // is what actually closes that gap once the dashboard side is toggled on.
+  async function getCaptchaToken(): Promise<string | undefined> {
+    if (!TURNSTILE_SITE_KEY) return undefined;
+    try {
+      return await turnstileRef.current?.execute();
+    } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Couldn't verify you're human", getErrorMessage(err));
+      throw err;
+    }
+  }
 
   // Caught live during real end-to-end testing, not hypothetical: submitting
   // with a blank email calls Supabase with an empty string, which it treats
@@ -46,22 +70,43 @@ export default function AuthScreen() {
     if (!validateFields()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) Alert.alert("Sign in failed", error.message);
+    try {
+      const captchaToken = await getCaptchaToken();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken },
+      });
+      if (error) Alert.alert("Sign in failed", error.message);
+    } catch {
+      // getCaptchaToken() already showed its own alert.
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSignUp() {
     if (!validateFields()) return;
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-    if (error) Alert.alert("Sign up failed", error.message);
-    else Alert.alert("Check your email", "Confirm your account, then sign in.");
+    try {
+      const captchaToken = await getCaptchaToken();
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { captchaToken },
+      });
+      if (error) Alert.alert("Sign up failed", error.message);
+      else Alert.alert("Check your email", "Confirm your account, then sign in.");
+    } catch {
+      // getCaptchaToken() already showed its own alert.
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
+      {TURNSTILE_SITE_KEY && <TurnstileChallenge ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />}
       <KeyboardAvoidingView
         style={styles.keyboardAvoider}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

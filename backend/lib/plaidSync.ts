@@ -155,6 +155,31 @@ export async function applyModified(modified: PlaidAddedTransaction[], item: Pla
   }
 }
 
+// Compare-and-swap, not a blind write: without the `.eq("cursor", ...)` /
+// `.is("cursor", null)` guard, two concurrent syncs for the same item (a
+// webhook redelivery racing a pull-to-refresh, or a redelivery racing
+// itself) each read their own starting cursor independently and blind-write
+// their own progress at the end — whichever finishes last wins, even if it
+// started from an older snapshot and advanced less far than a faster
+// concurrent pass already had. That regressed cursor then forces redundant
+// re-processing (mostly harmless: added/removed are naturally idempotent,
+// but modified isn't strictly idempotent if a transaction changed again in
+// between) and wastes Plaid API calls every time it happens. This ensures
+// at most one of two racing writers actually advances the cursor per page —
+// the other gets zero affected rows back and aborts cleanly instead of
+// silently clobbering progress.
+async function advanceCursor(itemId: string, previousCursor: string | undefined, nextCursor: string): Promise<void> {
+  let query = supabaseAdmin.from("plaid_items").update({ cursor: nextCursor }).eq("id", itemId);
+  query = previousCursor === undefined ? query.is("cursor", null) : query.eq("cursor", previousCursor);
+  const { data, error } = await query.select("id");
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error(
+      `Cursor advance for plaid_items.id=${itemId} conflicted with a concurrent sync of the same item — aborting this pass rather than risk clobbering its progress`
+    );
+  }
+}
+
 // Pulls all new/changed/removed transactions for one Plaid item since its
 // last cursor, applies them, and advances the stored cursor — one page at a
 // time, checkpointing after each page rather than only once at the very end.
@@ -196,11 +221,7 @@ export async function syncPlaidItem(item: PlaidItemRow, filters: SyncFilters): P
 
     // Checkpoint now that this page's added/modified/removed are all
     // durably persisted — not after the whole multi-page pull completes.
-    const { error: cursorError } = await supabaseAdmin
-      .from("plaid_items")
-      .update({ cursor: next_cursor })
-      .eq("id", item.id);
-    if (cursorError) throw cursorError;
+    await advanceCursor(item.id, cursor, next_cursor);
 
     cursor = next_cursor;
     hasMore = has_more;

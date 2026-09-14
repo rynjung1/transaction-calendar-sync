@@ -1,0 +1,268 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Transaction Calendar Sync Terms of Service</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #faf9f7;
+    --surface: #ffffff;
+    --surface-2: #f2f0ec;
+    --text: #16160f;
+    --text-secondary: #55534a;
+    --text-muted: #85837a;
+    --border: rgba(20,20,15,0.12);
+    --accent: #2f6fc4;
+    --accent-wash: rgba(47,111,196,0.08);
+    --danger: #c73036;
+    --danger-wash: rgba(199,48,54,0.07);
+    --good: #0a8f0a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d0d0d;
+      --surface: #1a1a19;
+      --surface-2: #202020;
+      --text: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --border: rgba(255,255,255,0.10);
+      --accent: #5b9bea;
+      --accent-wash: rgba(91,155,234,0.12);
+      --danger: #e5484d;
+      --danger-wash: rgba(229,72,77,0.10);
+      --good: #2ec02e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #202020;
+    --text: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --border: rgba(255,255,255,0.10);
+    --accent: #5b9bea;
+    --accent-wash: rgba(91,155,234,0.12);
+    --danger: #e5484d;
+    --danger-wash: rgba(229,72,77,0.10);
+    --good: #2ec02e;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    line-height: 1.65;
+    padding-inline: 20px;
+    padding-block: 48px;
+  }
+  main { max-width: 680px; margin-inline: auto; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mark {
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    background: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .mark svg { width: 11px; height: 11px; }
+
+  h1 {
+    font-family: "Sora", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: clamp(28px, 5vw, 38px);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 10px 0 6px;
+    text-wrap: balance;
+  }
+  .subtitle {
+    color: var(--text-secondary);
+    font-size: 16px;
+    margin: 0 0 6px;
+  }
+  .updated {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin: 0 0 36px;
+  }
+
+  h2 {
+    font-family: "Sora", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: -0.005em;
+    margin: 44px 0 12px;
+    text-wrap: balance;
+  }
+  h1 + p, section:first-of-type h2:first-child { margin-top: 0; }
+
+  p { margin: 0 0 14px; color: var(--text); }
+  section p:last-child { margin-bottom: 0; }
+  section { margin-bottom: 4px; }
+
+  a { color: var(--accent); text-decoration-color: var(--border); text-underline-offset: 2px; }
+  a:hover { text-decoration-color: var(--accent); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  strong { font-weight: 600; }
+
+  .callout {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    background: var(--accent-wash);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin: 18px 0;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.danger { border-left-color: var(--danger); background: var(--danger-wash); }
+  .callout-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .callout.danger .callout-label { color: var(--danger); }
+
+  ul { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  li:last-child { margin-bottom: 0; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  footer a { color: var(--text-secondary); }
+</style>
+
+<main>
+  <div class="eyebrow">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3L21 20H3L12 3Z" stroke="white" stroke-width="2.4" stroke-linejoin="round"/></svg>
+    </span>
+    Transaction Calendar Sync
+  </div>
+  <h1>Terms of Service</h1>
+  <p class="subtitle">The rules for using the app, in plain language.</p>
+  <p class="updated">Last updated: September 14, 2026</p>
+
+  <section>
+    <p>These terms govern your use of Transaction Calendar Sync ("the app"). By creating an account, you agree to them.</p>
+  </section>
+
+  <section>
+    <h2>Who operates this app</h2>
+    <p>Transaction Calendar Sync is operated by Ryan Jung. There is no separate corporate entity at this time — these terms will be updated if that changes.</p>
+    <div class="callout">
+      <span class="callout-label">Contact</span>
+      <p><a href="mailto:ryanjung2007@gmail.com">ryanjung2007@gmail.com</a></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>What the app does</h2>
+    <p>The app connects to your bank account through Plaid, reads your transaction data, and writes each transaction as an event on a calendar you choose. It's a read-only spending diary — the app never initiates a payment, transfer, or any change to your bank account, and never manages your money in any way. See the <a href="https://claude.ai/code/artifact/4e325609-3c98-4037-a842-c39e4b7fce07">Privacy Policy</a> for what data is collected and how it's used.</p>
+  </section>
+
+  <section>
+    <h2>Eligibility</h2>
+    <p>You must be able to form a binding contract to use this app, and be a legal adult in your province or territory of residence. The app is not directed at children and you must not use it if you're under 13.</p>
+  </section>
+
+  <section>
+    <h2>Your account</h2>
+    <ul>
+      <li>You're responsible for keeping your sign-in credentials secure, and for everything that happens under your account.</li>
+      <li>You must provide accurate information and connect only bank accounts you're authorized to access.</li>
+      <li>One person, one account — don't share your account with anyone else.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Your bank connection</h2>
+    <ul>
+      <li>The app uses Plaid to connect to your bank. Your use of Plaid's services is also governed by <a href="https://plaid.com/legal/#end-user-privacy-policy">Plaid's End User Privacy Policy</a> and Plaid's own terms.</li>
+      <li>Your bank may have its own terms about connecting third-party apps like this one — you're responsible for complying with those.</li>
+      <li>You can disconnect your bank, or delete your account entirely, at any time from Settings.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Calendar events</h2>
+    <ul>
+      <li>Transactions are written to whichever calendar you choose (Apple, Google, or another calendar on your device) using your device's own calendar permissions. Those events are then subject to that calendar provider's own terms, not this app's.</li>
+      <li><strong>The app doesn't delete calendar events it creates.</strong> Disconnecting your bank or deleting your account removes the app's own records of your transactions, but any calendar events already written stay on your calendar — you manage those yourself.</li>
+      <li>Because a calendar event's title includes the merchant name and exact amount, anyone with access to that calendar (or your device's lock screen, depending on your notification settings) can see that information. You're responsible for choosing a calendar appropriate for that.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>No financial advice, no guarantee of accuracy</h2>
+    <p>This app is a convenience tool for seeing your own spending on a calendar. It is not financial, tax, or accounting advice, and shouldn't be relied on as your authoritative record of your finances — your bank's own statements are that record.</p>
+    <p>Transaction data (merchant name, amount, category, timing) comes from Plaid and your bank, not from us — we can't guarantee it's complete, accurate, or delivered without delay.</p>
+    <div class="callout">
+      <p>We make a genuine best effort at reliable syncing, but calendar sync — like any software — can fail. Don't rely on this app as your only way of noticing an unexpected or fraudulent charge; keep checking your bank's own alerts and statements.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Acceptable use</h2>
+    <p>You agree not to:</p>
+    <ul>
+      <li>Use the app for any unlawful purpose, or to connect a bank account you're not authorized to access.</li>
+      <li>Attempt to interfere with, disrupt, reverse-engineer, or gain unauthorized access to the app's backend, infrastructure, or any other user's data.</li>
+      <li>Use the app in a way that violates Plaid's own terms of service, since our ability to offer this app at all depends on our own compliance with Plaid's terms.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Termination</h2>
+    <p>You can stop using the app and delete your account at any time via <strong>Settings → Delete account</strong>, which permanently revokes your bank connection and erases your synced transaction data. We may suspend or terminate an account that violates these terms, or that we reasonably believe poses a security risk to the app or its other users.</p>
+  </section>
+
+  <section>
+    <h2>Disclaimer of warranties</h2>
+    <p>The app is provided <strong>"as is"</strong> and <strong>"as available,"</strong> without warranties of any kind, express or implied, including (to the extent permitted by law) any implied warranty of merchantability, fitness for a particular purpose, or non-infringement. We don't warrant that the app will be uninterrupted, error-free, or fully secure — no software is.</p>
+  </section>
+
+  <section>
+    <h2>Limitation of liability</h2>
+    <p>To the maximum extent permitted by applicable law, the app's operator is not liable for any indirect, incidental, special, or consequential damages arising from your use of the app, including (without limitation) any inaccuracy in synced transaction data, any calendar event that fails to sync or contains incorrect information, or any loss of data. This doesn't limit any liability that can't be limited under the laws of your province or territory (for example, certain consumer-protection rights under Canadian law).</p>
+  </section>
+
+  <section>
+    <h2>Changes to these terms</h2>
+    <p>If these terms change in a way that materially affects your rights, you'll be notified in-app or by email before the change takes effect. Continuing to use the app after that means you accept the updated terms.</p>
+  </section>
+
+  <section>
+    <h2>Governing law</h2>
+    <p>These terms are governed by the laws of Canada and the province in which the app's operator resides, without regard to conflict-of-law principles.</p>
+  </section>
+
+  <footer>
+    Transaction Calendar Sync — Terms of Service · <a href="mailto:ryanjung2007@gmail.com">ryanjung2007@gmail.com</a>
+  </footer>
+</main>
+
+</body></html>

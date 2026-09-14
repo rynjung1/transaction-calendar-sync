@@ -20,6 +20,7 @@ import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
 
 const PRIVACY_POLICY_URL = "https://claude.ai/code/artifact/4e325609-3c98-4037-a842-c39e4b7fce07";
+const TERMS_OF_SERVICE_URL = "https://claude.ai/code/artifact/33d1e392-0850-42bf-b17f-75cc5456d2b9";
 
 export default function AuthScreen() {
   const [email, setEmail] = useState("");
@@ -123,14 +124,25 @@ export default function AuthScreen() {
           </Pressable>
         </View>
 
-        <Pressable
-          onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
-          hitSlop={8}
-          accessibilityRole="link"
-          accessibilityLabel="Privacy Policy"
-        >
-          <Text style={styles.privacyLink}>Privacy Policy</Text>
-        </Pressable>
+        <View style={styles.legalLinks}>
+          <Pressable
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+            hitSlop={8}
+            accessibilityRole="link"
+            accessibilityLabel="Privacy Policy"
+          >
+            <Text style={styles.privacyLink}>Privacy Policy</Text>
+          </Pressable>
+          <Text style={styles.legalLinkSeparator}>·</Text>
+          <Pressable
+            onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
+            hitSlop={8}
+            accessibilityRole="link"
+            accessibilityLabel="Terms of Service"
+          >
+            <Text style={styles.privacyLink}>Terms of Service</Text>
+          </Pressable>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -162,12 +174,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   buttons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  legalLinks: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginTop: spacing.lg,
+  },
+  legalLinkSeparator: { ...typography.xs, color: theme.textMuted },
   privacyLink: {
     ...typography.xs,
     color: theme.textMuted,
     textAlign: "center",
     textDecorationLine: "underline",
-    marginTop: spacing.lg,
   },
   button: {
     flex: 1,

@@ -26,7 +26,23 @@ export default function AuthScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Caught live during real end-to-end testing, not hypothetical: submitting
+  // with a blank email calls Supabase with an empty string, which it treats
+  // as an anonymous-sign-in attempt and rejects with "Anonymous sign-ins are
+  // disabled" — a real response, but one that means nothing to a user who
+  // just forgot to type an email. A trivial local check catches this before
+  // it ever reaches Supabase.
+  function validateFields(): boolean {
+    if (!email.trim() || !password) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Missing info", "Enter both an email and a password.");
+      return false;
+    }
+    return true;
+  }
+
   async function handleSignIn() {
+    if (!validateFields()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -35,6 +51,7 @@ export default function AuthScreen() {
   }
 
   async function handleSignUp() {
+    if (!validateFields()) return;
     setLoading(true);
     const { error } = await supabase.auth.signUp({ email, password });
     setLoading(false);

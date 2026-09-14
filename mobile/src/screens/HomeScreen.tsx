@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { RefreshCw, LogOut, CircleCheck, CircleX, Inbox } from "lucide-react-native";
 import { syncTransactions, confirmCalendarEvent } from "../lib/api";
@@ -11,6 +12,39 @@ import type { SelectedCalendar, SyncedTransaction } from "../types";
 import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
+
+// transactionId -> calendarEventId for a device-side event that was created
+// but never successfully confirmed with the backend (e.g. the calendar write
+// succeeded, then a network drop or backend hiccup failed the confirm call).
+// Without this, the transaction stays "pending" server-side forever, and the
+// *next* sync fetches it again and creates a SECOND real calendar event for
+// the same real-world transaction — a genuine duplicate, not just a retry.
+// Persisting the mapping before attempting to confirm means a retry (later
+// in this same loop's next run, or a whole new sync) reuses the existing
+// event and just retries the confirm call, instead of creating another one.
+const PENDING_EVENTS_KEY = "pendingCalendarEvents";
+
+async function getPendingEventMap(): Promise<Record<string, string>> {
+  const raw = await AsyncStorage.getItem(PENDING_EVENTS_KEY);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // Corrupted local data — same posture as elsewhere in this app: treat as
+    // empty rather than let a bad AsyncStorage value break sync entirely.
+    return {};
+  }
+}
+
+async function setPendingEvent(map: Record<string, string>, transactionId: string, eventId: string) {
+  map[transactionId] = eventId;
+  await AsyncStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(map));
+}
+
+async function clearPendingEvent(map: Record<string, string>, transactionId: string) {
+  delete map[transactionId];
+  await AsyncStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(map));
+}
 
 interface Props {
   calendar: SelectedCalendar;
@@ -34,11 +68,19 @@ export default function HomeScreen({ calendar }: Props) {
     try {
       const { transactions } = await syncTransactions();
       const synced: SyncedTransaction[] = [];
+      const pendingEvents = await getPendingEventMap();
 
       for (const txn of transactions) {
         try {
-          const eventId = await createTransactionEvent(calendar.id, txn);
+          // Reuse an already-created-but-unconfirmed event for this exact
+          // transaction if one exists, rather than creating a new one.
+          let eventId = pendingEvents[txn.id];
+          if (!eventId) {
+            eventId = await createTransactionEvent(calendar.id, txn);
+            await setPendingEvent(pendingEvents, txn.id, eventId);
+          }
           await confirmCalendarEvent(txn.id, eventId);
+          await clearPendingEvent(pendingEvents, txn.id);
           synced.push({ ...txn, calendarEventId: eventId, status: "synced" });
         } catch (err) {
           synced.push({ ...txn, status: "failed" });

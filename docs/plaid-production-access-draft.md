@@ -36,12 +36,14 @@ State your actual model here — the app doesn't have a business model built int
 > - We use the Transactions Sync (`/transactions/sync`) pattern exclusively, driven by Plaid's `SYNC_UPDATES_AVAILABLE` webhook plus user-initiated refresh — no timer-based polling.
 > - Plaid webhooks are cryptographically verified (ES256 JWT signature against Plaid's published key, freshness check, and a body-hash check) before being processed.
 > - Users can permanently delete their account in-app, which calls Plaid's `/item/remove` to formally revoke the access token at Plaid (not just delete our copy of it) before deleting all associated data.
+> - The Items connection is monitored via webhooks for `USER_PERMISSION_REVOKED`/`USER_ACCOUNT_REVOKED` (bank-side revocation) and `ITEM_LOGIN_REQUIRED` (needs re-auth), both surfaced to the user with a reconnect path — not left silently stale.
+> - `/transactions/sync` calls are rate-limited per linked item (a cooldown after each successful sync) so a client bug or a compromised session token can't drive unbounded call volume against Plaid's API.
 > - A PIPEDA-compliant privacy policy is published and linked in-app.
 
 ## Privacy policy & terms of service URLs
 
-- Privacy policy: [insert your published, publicly-shared privacy policy URL here — the one built earlier this session]
-- Terms of service: [not yet drafted as of this session — flag this to yourself; some production applications require one even for a simple app]
+- Privacy policy: [insert your published, publicly-shared privacy policy URL here — `PRIVACY.md` is the source text, published at `https://claude.ai/code/artifact/4e325609-3c98-4037-a842-c39e4b7fce07` but still private by default; share it via the page's own share menu first]
+- Terms of service: [insert your published, publicly-shared terms of service URL here — `TERMS.md` is the source text, published at `https://claude.ai/code/artifact/33d1e392-0850-42bf-b17f-75cc5456d2b9`, same private-by-default caveat as the privacy policy above]
 
 ## OAuth redirect URI
 

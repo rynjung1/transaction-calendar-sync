@@ -16,6 +16,19 @@ if (!webhookUrl) {
   throw new Error("Missing PLAID_WEBHOOK_URL env var");
 }
 
+// Optional, unlike webhookUrl above — deliberately doesn't throw when unset.
+// Several major Canadian banks (visible in this app's own institution
+// search — RBC, TD, Scotiabank, BMO, CIBC) commonly require OAuth-based
+// Plaid Link, which needs a real redirect_uri registered in the Plaid
+// Dashboard first (an account action, not something this code can do) —
+// until that's done, linkTokenCreate must simply omit this field entirely
+// rather than send an unregistered one, which Plaid would reject outright
+// for every Link session, not just OAuth ones. Set PLAID_REDIRECT_URI once
+// the Dashboard side is done (see mobile/app.config.ts's associatedDomains
+// and backend/.well-known/apple-app-site-association for the rest of the
+// setup this depends on).
+const redirectUri = process.env.PLAID_REDIRECT_URI;
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -31,6 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       country_codes: [CountryCode.Ca, CountryCode.Us],
       language: "en",
       webhook: webhookUrl,
+      ...(redirectUri ? { redirect_uri: redirectUri } : {}),
     });
 
     return res.status(200).json({ linkToken: response.data.link_token });

@@ -45,8 +45,10 @@ const config: ExpoConfig = {
   // react-native-webview (for Turnstile), @sentry/react-native — with no
   // version bump for any of them. No live EAS Update channel is actually
   // serving real users yet, so nothing broke from this in practice, but
-  // fixing it now closes the gap before it ever could.
-  version: "1.1.0",
+  // fixing it now closes the gap before it ever could. Bumped again to
+  // 1.2.0 for the associatedDomains entitlement below — same reasoning,
+  // it's a native/code-signing-level change too.
+  version: "1.2.0",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
@@ -61,6 +63,19 @@ const config: ExpoConfig = {
         "This app writes your transactions as events on the calendar you choose, so it needs permission to add and view events.",
       ITSAppUsesNonExemptEncryption: false,
     },
+    // Enables Plaid OAuth support for banks that require it (several major
+    // Canadian ones do — RBC, TD, Scotiabank, BMO, CIBC). iOS OAuth Link
+    // needs a real Universal Link, not this app's own txncalsync:// custom
+    // scheme — checked Plaid's own current docs rather than assuming a
+    // custom-scheme deep link would work, since it explicitly doesn't for
+    // iOS. This entitlement alone is inert (Associated Domains only takes
+    // effect once the domain actually serves a matching, correctly-signed
+    // apple-app-site-association file — see
+    // backend/.well-known/apple-app-site-association, whose appID still has
+    // a placeholder Team ID pending Apple Developer enrollment) and is safe
+    // to ship before that's finished. Points at the existing backend
+    // deployment — no separate domain needed.
+    associatedDomains: ["applinks:backend-theta-fawn-72.vercel.app"],
   },
   android: {
     package: "com.rynjung1.transactioncalendarsync",

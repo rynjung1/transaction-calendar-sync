@@ -1,6 +1,6 @@
 # Privacy Policy — Transaction Calendar Sync
 
-**Last updated:** September 12, 2026
+**Last updated:** September 14, 2026
 
 This policy explains what personal information Transaction Calendar Sync ("the app") collects, why, and what you can do about it. It's written to meet Canada's *Personal Information Protection and Electronic Documents Act* (PIPEDA), since the app is built for use with a Canadian bank account.
 
@@ -33,6 +33,8 @@ Solely to provide the app's one function: turning your bank transactions into ca
 - **Supabase** — hosts the app's database and handles sign-in. Your data is stored on Supabase's infrastructure in the United States (AWS, us-east-1 region).
 - **Vercel** — runs the app's backend server logic, also hosted in the United States.
 - **Apple / Google** — if you choose an iCloud or Google calendar, the events the app creates are stored there under that provider's own terms, not this app's.
+- **Sentry** — if enabled, receives crash and error reports (e.g. device/OS information, a stack trace, and diagnostic details about what the app was doing when something went wrong) so problems can be found and fixed. Your bank login, your Plaid access token, and your app password are never sent to Sentry or anywhere else outside the app's own backend. See [Sentry's privacy policy](https://sentry.io/privacy/).
+- **Cloudflare** — if enabled, its Turnstile service runs an automated check when you sign in or sign up, to help prevent automated abuse of the app's login. See [Cloudflare's privacy policy](https://www.cloudflare.com/privacypolicy/).
 
 **Cross-border disclosure:** because Supabase and Vercel host their infrastructure in the United States, your personal information is processed and stored outside Canada and may be accessible to foreign courts, law enforcement, or national security authorities under the laws of that jurisdiction.
 

@@ -32,6 +32,15 @@ export default function AuthScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const turnstileRef = useRef<TurnstileChallengeHandle>(null);
+  // Same `disabled={loading}`-alone race already fixed with a ref guard in
+  // HomeScreen/LinkAccountScreen — React state updates asynchronously, so a
+  // double-tap landing before re-render could fire two concurrent
+  // signIn/signUp calls. Lower severity here than those two (no duplicate
+  // bank Item or calendar event results), but a double signUp for the same
+  // email can still surface a confusing "Sign up failed: already
+  // registered" alert racing against the real "Check your email" one — a
+  // real, if minor, user-facing glitch, not just a theoretical concern.
+  const submitting = useRef(false);
 
   // Empty until Turnstile is actually set up (see app.config.ts) — skips the
   // challenge entirely rather than blocking sign-in/sign-up on a feature
@@ -69,7 +78,8 @@ export default function AuthScreen() {
   }
 
   async function handleSignIn() {
-    if (!validateFields()) return;
+    if (!validateFields() || submitting.current) return;
+    submitting.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
     try {
@@ -83,12 +93,14 @@ export default function AuthScreen() {
     } catch {
       // getCaptchaToken() already showed its own alert.
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   }
 
   async function handleSignUp() {
-    if (!validateFields()) return;
+    if (!validateFields() || submitting.current) return;
+    submitting.current = true;
     setLoading(true);
     try {
       const captchaToken = await getCaptchaToken();
@@ -102,6 +114,7 @@ export default function AuthScreen() {
     } catch {
       // getCaptchaToken() already showed its own alert.
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   }

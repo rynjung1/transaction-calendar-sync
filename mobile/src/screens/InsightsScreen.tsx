@@ -170,7 +170,19 @@ export default function InsightsScreen() {
 
     const isCurrentMonth = month === currentMonth();
     const totalDays = daysInMonth(month);
-    const daysForAverage = isCurrentMonth ? new Date().getUTCDate() : totalDays;
+    // getDate() (local), not getUTCDate() — currentMonth() above already
+    // determines "is this the current month" from local date components,
+    // but this line used to mix in the UTC date-of-month for how many days
+    // to average over, which disagrees with that same local basis for
+    // several hours a day in any timezone behind UTC — this app's whole
+    // real market (Canada) is entirely west of UTC. Confirmed for real, not
+    // assumed: simulating 11:30 PM in Vancouver on the 14th, getUTCDate()
+    // already reports 15 (UTC has rolled to the next day) while getDate()
+    // correctly still reports 14 — the exact same class of bug as
+    // calendar.ts's localNoonIso() fix, just missed here originally. Using
+    // the wrong (larger) day count understates avgPerDay for a real chunk
+    // of every evening.
+    const daysForAverage = isCurrentMonth ? new Date().getDate() : totalDays;
     const avgPerDay = totalSpend / Math.max(daysForAverage, 1);
 
     const pctChange =

@@ -191,7 +191,27 @@ export default function App() {
         <Text style={styles.statusErrorText}>{statusError}</Text>
         <Pressable
           style={styles.retryButton}
-          onPress={() => setStatusCheckAttempt((n) => n + 1)}
+          onPress={() => {
+            // Real bug, found on a fresh read-through: the status-check
+            // effect clears statusError synchronously the instant it
+            // re-runs, well before the retried getPlaidStatus() call
+            // actually resolves — but nothing here re-armed `booting`,
+            // which by this point had already been set back to false by
+            // the FIRST failed attempt's own finally(). For however long
+            // the retry takes, that left statusError=null, booting=false,
+            // and linked still at its default false (never having
+            // succeeded), which falls straight through to
+            // LinkAccountScreen — exactly the "already-linked user briefly
+            // sees Connect your bank" bug this file already fixed once for
+            // cold launch, just reintroduced here via the retry path added
+            // alongside that same fix. Setting booting=true here directly
+            // (not inside the effect itself, which also re-runs on every
+            // routine hourly token refresh — doing it there would flash
+            // the boot spinner on every refresh, a worse regression) keeps
+            // the fix scoped to an actual user-initiated retry.
+            setBooting(true);
+            setStatusCheckAttempt((n) => n + 1);
+          }}
           accessibilityRole="button"
           accessibilityLabel="Try again"
         >

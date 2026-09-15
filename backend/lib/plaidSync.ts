@@ -9,11 +9,36 @@ export interface PlaidItemRow {
   item_id: string;
   access_token_encrypted: string;
   cursor: string | null;
+  last_synced_at?: string | null;
 }
 
 export interface SyncFilters {
   min_amount: number;
   excluded_categories: string[];
+}
+
+// Applied only by /api/plaid/sync (the user-initiated, attacker-reachable
+// path) — Plaid's own SYNC_UPDATES_AVAILABLE webhook always calls
+// syncPlaidItem directly and is never subject to this, since Plaid decides
+// that call's cadence, not a client we don't control. 30s is generous
+// enough that a real pull-to-refresh never perceives it (a full pagination
+// pass through a large backlog completes in well under that on a single
+// initial sync's worth of Plaid calls) while still bounding worst-case
+// Plaid API cost to two calls per item per minute for any single caller.
+export const SYNC_COOLDOWN_MS = 30_000;
+
+// Extracted as a pure function so the boundary behavior (exactly-at-cooldown
+// counts as expired, not still-cooling) is directly unit-testable without
+// mocking Date.now or a real plaid_items row.
+export function isWithinCooldown(
+  lastSyncedAt: string | null | undefined,
+  now: number = Date.now(),
+  cooldownMs: number = SYNC_COOLDOWN_MS
+): boolean {
+  if (!lastSyncedAt) return false;
+  const last = new Date(lastSyncedAt).getTime();
+  if (Number.isNaN(last)) return false; // malformed stored value — fail open, don't block a real sync over it
+  return now - last < cooldownMs;
 }
 
 type PlaidAddedTransaction = Awaited<

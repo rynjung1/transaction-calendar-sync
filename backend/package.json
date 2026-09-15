@@ -2,6 +2,9 @@
   "name": "transaction-calendar-sync-backend",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

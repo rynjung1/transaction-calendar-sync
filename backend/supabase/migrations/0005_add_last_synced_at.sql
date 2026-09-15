@@ -1,0 +1,18 @@
+-- Backs the /api/plaid/sync rate-limiting fix: confirmed via grep + checking
+-- for a vercel.json that there was zero throttling anywhere on this
+-- endpoint, which calls Plaid's transactionsSync (billed per-call in
+-- production) once per linked item on every request. Any authenticated
+-- user — or a stolen session token, or a future client-side retry-loop bug
+-- — could call it as fast as the network allows with no cost or
+-- availability protection on our side.
+--
+-- last_synced_at is nullable (existing rows start unset, meaning "never
+-- rate-limited yet" — the very next sync attempt for them always proceeds)
+-- and is stamped by sync.ts after each item's Plaid call actually
+-- succeeds, not before — a failed attempt doesn't cost the user their next
+-- retry window. The cooldown check itself (isWithinCooldown, lib/plaidSync.ts)
+-- is applied only in the user-initiated /api/plaid/sync path; Plaid's own
+-- SYNC_UPDATES_AVAILABLE webhook always calls syncPlaidItem directly and is
+-- deliberately never subject to this column, since Plaid — not an
+-- attacker-controlled client — decides that call's cadence.
+alter table public.plaid_items add column if not exists last_synced_at timestamptz;

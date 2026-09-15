@@ -27,17 +27,39 @@ const MAX_WEBHOOK_AGE_SECONDS = 5 * 60;
 // a key's `expired_at` (part of Plaid's own JWKPublicKey type) is a required
 // check per Plaid's verification algorithm, not optional metadata: Plaid can
 // retire a kid (e.g. after a suspected compromise) while its signature would
-// still validate cryptographically. A kid that's expired stays expired
-// permanently — it never comes back into service under a rotated key — so
-// caching that fact is both correct and means a replayed JWT for a
-// known-retired kid is rejected without even calling Plaid again.
+// still validate cryptographically.
+//
+// Real gap, found on a fresh read-through and fixed: an *unbounded* cache
+// defeats exactly that scenario. If a kid is fetched while still valid
+// (expiredAt: null) and Plaid later retires it — the literal "suspected
+// compromise" case this check exists for — a warm instance that already
+// cached it as valid would keep accepting signatures from that now-retired
+// key for as long as it stays warm, since nothing ever re-fetches an entry
+// once cached. Checked Plaid's own webhook verification docs directly for a
+// recommended TTL — they don't give one; their own reference sample code
+// caches keys the same unbounded way this file originally did. Picking a
+// bounded TTL anyway (1 hour) is strictly better than no bound at all: it
+// caps how long a warm instance can keep trusting a key Plaid has since
+// retired, at the cost of one extra Plaid API call per kid per hour of
+// continuous webhook traffic — a real trade worth making for a check whose
+// whole stated purpose is catching exactly this. A kid that's actually still
+// expired on re-fetch is unaffected (still rejected, still cached).
+const KEY_CACHE_TTL_MS = 60 * 60 * 1000;
+
 interface CachedVerificationKey {
   jwk: webcrypto.JsonWebKey;
   expiredAt: number | null;
+  fetchedAt: number;
 }
 const keyCache = new Map<string, CachedVerificationKey>();
 
 export class WebhookVerificationError extends Error {}
+
+// Pure so the boundary (exactly-at-TTL counts as stale) is directly
+// unit-testable, same pattern as sync.ts's isWithinCooldown.
+export function isCacheEntryStale(fetchedAt: number, now: number = Date.now(), ttlMs: number = KEY_CACHE_TTL_MS): boolean {
+  return now - fetchedAt >= ttlMs;
+}
 
 function base64UrlDecode(input: string): Buffer {
   return Buffer.from(input, "base64url");
@@ -45,13 +67,14 @@ function base64UrlDecode(input: string): Buffer {
 
 async function getVerificationKey(keyId: string): Promise<CachedVerificationKey> {
   const cached = keyCache.get(keyId);
-  if (cached) {
+  if (cached && !isCacheEntryStale(cached.fetchedAt)) {
     return cached;
   }
   const response = await plaidClient.webhookVerificationKeyGet({ key_id: keyId });
   const entry: CachedVerificationKey = {
     jwk: response.data.key as unknown as webcrypto.JsonWebKey,
     expiredAt: response.data.key.expired_at ?? null,
+    fetchedAt: Date.now(),
   };
   keyCache.set(keyId, entry);
   return entry;

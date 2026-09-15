@@ -8,6 +8,7 @@ import { syncTransactions, confirmCalendarEvent } from "../lib/api";
 import { createTransactionEvent, removeTransactionEvent } from "../lib/calendar";
 import { getErrorMessage } from "../lib/errors";
 import { captureError } from "../lib/sentry";
+import { createSyncAccumulator } from "../lib/syncAccumulator";
 import { supabase } from "../lib/supabase";
 import type { SelectedCalendar, SyncedTransaction } from "../types";
 import { theme } from "../lib/theme";
@@ -106,16 +107,9 @@ export default function HomeScreen({ calendar }: Props) {
       // LATER page within this same multi-page loop can re-fetch and
       // re-attempt the exact same transaction — simulating 150 pending with
       // 10 failures on page 1 produced 160 pushes for only 150 distinct
-      // ids. With a plain array that means FlatList's
-      // `keyExtractor={(txn) => txn.id}` sees duplicate keys (undefined
-      // React reconciliation behavior, not just a console warning), and
-      // `synced.length` — used for both the live progress counter and the
-      // final "X of Y couldn't sync" summary — overcounts real attempts,
-      // visibly breaking both (e.g. "Syncing 160 of 150…"). A Map keyed by
-      // id means a later re-attempt's outcome simply overwrites the
-      // earlier one for that same transaction, matching what actually
-      // happened (its last real outcome), not double-counting it.
-      const synced = new Map<string, SyncedTransaction>();
+      // ids. See src/lib/syncAccumulator.ts for the extracted, permanently
+      // regression-tested fix and the full writeup.
+      const synced = createSyncAccumulator<SyncedTransaction>();
       const pendingEvents = await getPendingEventMap();
 
       // The backend caps how many pending transactions one response returns
@@ -151,7 +145,7 @@ export default function HomeScreen({ calendar }: Props) {
             }
             await confirmCalendarEvent(txn.id, eventId);
             await clearPendingEvent(pendingEvents, txn.id);
-            synced.set(txn.id, { ...txn, calendarEventId: eventId, status: "synced" });
+            synced.record({ ...txn, calendarEventId: eventId, status: "synced" });
             pageSucceeded++;
           } catch (err) {
             // Previously completely silent — not even a console.error —
@@ -162,7 +156,7 @@ export default function HomeScreen({ calendar }: Props) {
             // summary Alert below), but that means without this, there was
             // zero record anywhere of which transaction failed or why.
             captureError(err, { transactionId: txn.id, screen: "HomeScreen", action: "sync transaction" });
-            synced.set(txn.id, { ...txn, status: "failed" });
+            synced.record({ ...txn, status: "failed" });
           }
           setProgress({ done: synced.size, total });
         }
@@ -177,7 +171,7 @@ export default function HomeScreen({ calendar }: Props) {
         hasMore = response.hasMore && (pageSucceeded > 0 || response.transactions.length === 0);
       }
 
-      const syncedList = Array.from(synced.values());
+      const syncedList = synced.toArray();
       setLastSynced(syncedList);
       setHasSynced(true);
 

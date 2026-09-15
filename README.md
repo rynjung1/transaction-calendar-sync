@@ -33,10 +33,13 @@ Expo + TypeScript, using a custom dev client (**not** compatible with Expo Go, s
   - `api.ts` — authenticated fetch wrapper around the backend endpoints below, retries once on a 401 via a forced session refresh
   - `calendar.ts` — permissions, calendar listing, event creation/removal via `react-native-calendar-events`
   - `supabase.ts` — Supabase client (publishable key), session storage backed by `expo-secure-store` (iOS Keychain)
-  - `sentry.ts` — crash/error reporting init, no-ops until a DSN is configured
+  - `sentry.ts` — crash/error reporting init (no-ops until a DSN is configured) and `captureError()`, called from every screen's real catch sites, not just uncaught crashes
+  - `dates.ts`, `currency.ts`, `percentages.ts`, `storageKeys.ts`, `syncAccumulator.ts` — pure, RN-import-free logic extracted out of the screens/libs that used to embed it inline, specifically so it's unit-testable (see `npm test` below)
   - `theme.ts`, `typography.ts`, `spacing.ts` — shared UI tokens
 - `src/components/`
   - `TurnstileChallenge.tsx` — Cloudflare Turnstile widget (WebView-hosted; no native RN SDK exists)
+
+A Vitest suite (`npm test`, 34 tests across 7 files) covers the RN-import-free logic in `src/lib/` above — see CLAUDE.md's "Mobile testing" section for exactly what's covered (several real, previously-shipped bugs — a timezone anchor bug, a currency-default bug, a multi-page sync dedup bug) and what's deliberately not (real component/screen behavior, verified instead against actual Simulator runs and direct EventKit database queries).
 
 ### `backend/`
 

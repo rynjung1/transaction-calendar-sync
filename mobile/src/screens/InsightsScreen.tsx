@@ -19,78 +19,13 @@ import { spacing } from "../lib/spacing";
 import type { MonthlyTransaction } from "../types";
 import { getErrorMessage } from "../lib/errors";
 import { captureError } from "../lib/sentry";
-
-function monthLabel(month: string): string {
-  const [year, mon] = month.split("-").map(Number);
-  return new Date(Date.UTC(year, mon - 1, 1)).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-
-function shiftMonth(month: string, delta: number): string {
-  const [year, mon] = month.split("-").map(Number);
-  const shifted = new Date(Date.UTC(year, mon - 1 + delta, 1));
-  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-function daysInMonth(month: string): number {
-  const [year, mon] = month.split("-").map(Number);
-  return new Date(Date.UTC(year, mon, 0)).getUTCDate();
-}
-
-function currentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-// CAD, not USD — this screen's every dollar figure (total spend, category
-// breakdown, individual transactions) used a hardcoded "USD" with no
-// fallback logic at all, unlike calendar.ts's per-transaction formatter
-// (same fix applied there). Intl.NumberFormat doesn't convert currency, only
-// how it's displayed, so this never produced a wrong number — but for a
-// screen whose entire job is summarizing a Canadian bank account's real
-// spending, showing a plain "$" as if every figure were USD is a real,
-// visible accuracy issue on this app's one documented market. The optional
-// `currency` param lets the one call site with real per-transaction data
-// (the day-by-day list below) pass the transaction's own isoCurrencyCode
-// instead of guessing; the aggregate totals (total spend, category
-// breakdown) sum across a whole month's transactions — potentially spanning
-// more than one linked account/currency, since multi-account is supported —
-// so a single label there is always an approximation regardless of which
-// currency is chosen as the default, and CAD is simply the far more likely
-// one to be correct.
-function formatCurrency(amount: number, currency?: string | null): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency ?? "CAD" }).format(amount);
-}
+import { currentMonth, daysElapsedInMonth, daysInMonth, monthLabel, shiftMonth } from "../lib/dates";
+import { formatCurrency } from "../lib/currency";
+import { roundPercentagesToSum100 } from "../lib/percentages";
 
 function formatDayHeading(dateStr: string): string {
   const date = new Date(`${dateStr}T00:00:00Z`);
   return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
-}
-
-// Rounds a set of amounts to whole-number percentages that sum to exactly
-// 100 (largest-remainder method) — rounding each share independently, as
-// Math.round(share) does, can land the set on 99 or 101 even though the
-// underlying exact shares always sum to 100.
-function roundPercentagesToSum100(amounts: number[]): number[] {
-  const total = amounts.reduce((sum, a) => sum + a, 0);
-  if (total <= 0) return amounts.map(() => 0);
-
-  const exact = amounts.map((a) => (a / total) * 100);
-  const floors = exact.map(Math.floor);
-  let remainder = 100 - floors.reduce((sum, f) => sum + f, 0);
-
-  const order = exact
-    .map((value, index) => ({ index, frac: value - Math.floor(value) }))
-    .sort((a, b) => b.frac - a.frac);
-
-  const result = [...floors];
-  for (let i = 0; i < remainder; i++) {
-    result[order[i].index] += 1;
-  }
-  return result;
 }
 
 export default function InsightsScreen() {
@@ -168,21 +103,11 @@ export default function InsightsScreen() {
     const totalSpend = expenses.reduce((sum, t) => sum + t.amount, 0);
     const totalIncome = income.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-    const isCurrentMonth = month === currentMonth();
     const totalDays = daysInMonth(month);
-    // getDate() (local), not getUTCDate() — currentMonth() above already
-    // determines "is this the current month" from local date components,
-    // but this line used to mix in the UTC date-of-month for how many days
-    // to average over, which disagrees with that same local basis for
-    // several hours a day in any timezone behind UTC — this app's whole
-    // real market (Canada) is entirely west of UTC. Confirmed for real, not
-    // assumed: simulating 11:30 PM in Vancouver on the 14th, getUTCDate()
-    // already reports 15 (UTC has rolled to the next day) while getDate()
-    // correctly still reports 14 — the exact same class of bug as
-    // calendar.ts's localNoonIso() fix, just missed here originally. Using
-    // the wrong (larger) day count understates avgPerDay for a real chunk
-    // of every evening.
-    const daysForAverage = isCurrentMonth ? new Date().getDate() : totalDays;
+    // See src/lib/dates.ts's daysElapsedInMonth for the real timezone bug
+    // this used to have (mixing UTC date-of-month into a local-basis
+    // calculation) and its permanent regression test.
+    const daysForAverage = daysElapsedInMonth(month);
     const avgPerDay = totalSpend / Math.max(daysForAverage, 1);
 
     const pctChange =

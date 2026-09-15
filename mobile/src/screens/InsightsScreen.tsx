@@ -45,8 +45,24 @@ function currentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
+// CAD, not USD — this screen's every dollar figure (total spend, category
+// breakdown, individual transactions) used a hardcoded "USD" with no
+// fallback logic at all, unlike calendar.ts's per-transaction formatter
+// (same fix applied there). Intl.NumberFormat doesn't convert currency, only
+// how it's displayed, so this never produced a wrong number — but for a
+// screen whose entire job is summarizing a Canadian bank account's real
+// spending, showing a plain "$" as if every figure were USD is a real,
+// visible accuracy issue on this app's one documented market. The optional
+// `currency` param lets the one call site with real per-transaction data
+// (the day-by-day list below) pass the transaction's own isoCurrencyCode
+// instead of guessing; the aggregate totals (total spend, category
+// breakdown) sum across a whole month's transactions — potentially spanning
+// more than one linked account/currency, since multi-account is supported —
+// so a single label there is always an approximation regardless of which
+// currency is chosen as the default, and CAD is simply the far more likely
+// one to be correct.
+function formatCurrency(amount: number, currency?: string | null): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency ?? "CAD" }).format(amount);
 }
 
 function formatDayHeading(dateStr: string): string {
@@ -363,7 +379,7 @@ export default function InsightsScreen() {
                     ]}
                   >
                     {txn.amount < 0 ? "+" : "-"}
-                    {formatCurrency(Math.abs(txn.amount))}
+                    {formatCurrency(Math.abs(txn.amount), txn.isoCurrencyCode)}
                   </Text>
                 </View>
               ))}

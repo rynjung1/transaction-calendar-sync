@@ -66,13 +66,22 @@ export async function removeTransactionEvent(eventId: string): Promise<void> {
   }
 }
 
+// Falls back to CAD, not USD, when a transaction has no iso_currency_code —
+// this app's one documented market is a Canadian bank (see CLAUDE.md), so an
+// unknown currency is far more likely to be CAD than USD. Plaid can return
+// this null with only an unofficial_currency_code populated instead (not
+// currently captured — see plaidSync.ts's transactionToRow), which happens
+// for things like crypto/reward-point transactions, not ordinary chequing/
+// credit card spending; genuinely rare for this app's real usage, but
+// defaulting to the wrong country's currency for a Canadian banking app was
+// the wrong direction to guess in regardless of how rarely it's hit.
 function formatAmount(amount: number, currency: string | null): string {
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: currency ?? "USD",
+      currency: currency ?? "CAD",
     }).format(amount);
   } catch {
-    return `${amount.toFixed(2)} ${currency ?? ""}`.trim();
+    return `${amount.toFixed(2)} ${currency ?? "CAD"}`.trim();
   }
 }

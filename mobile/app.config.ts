@@ -33,7 +33,20 @@ const isProductionBuild = process.env.EAS_BUILD_PROFILE === "production";
 const config: ExpoConfig = {
   name: "Transaction Calendar Sync",
   slug: "transaction-calendar-sync",
-  version: "1.0.0",
+  // Bumped from 1.0.0: `runtimeVersion: { policy: "appVersion" }` below ties
+  // Expo Updates' native-compatibility fingerprint directly to this field —
+  // confirmed against Expo's own docs, not assumed ("appVersion" reads this
+  // exact field, and the documented practice is to bump it "just as you
+  // would for a user-facing release" whenever native code changes, since
+  // forgetting means a JS-only OTA update could get delivered to an older
+  // binary that reports the same runtime version but lacks the native
+  // module the update's JS actually needs). This project added three real
+  // native dependencies since 1.0.0 was first set — expo-secure-store,
+  // react-native-webview (for Turnstile), @sentry/react-native — with no
+  // version bump for any of them. No live EAS Update channel is actually
+  // serving real users yet, so nothing broke from this in practice, but
+  // fixing it now closes the gap before it ever could.
+  version: "1.1.0",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",

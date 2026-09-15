@@ -18,6 +18,7 @@ import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
 import type { MonthlyTransaction } from "../types";
 import { getErrorMessage } from "../lib/errors";
+import { captureError } from "../lib/sentry";
 
 function monthLabel(month: string): string {
   const [year, mon] = month.split("-").map(Number);
@@ -118,7 +119,10 @@ export default function InsightsScreen() {
     const requestId = ++latestRequestId.current;
     fetchMonth(month, requestId)
       .catch((err) => {
-        if (requestId === latestRequestId.current) setError(getErrorMessage(err));
+        if (requestId === latestRequestId.current) {
+          captureError(err, { screen: "InsightsScreen", action: "fetch month", month });
+          setError(getErrorMessage(err));
+        }
       })
       .finally(() => {
         if (requestId === latestRequestId.current) setLoading(false);
@@ -132,7 +136,10 @@ export default function InsightsScreen() {
       await fetchMonth(month, requestId);
       if (requestId === latestRequestId.current) setError(null);
     } catch (err) {
-      if (requestId === latestRequestId.current) setError(getErrorMessage(err));
+      if (requestId === latestRequestId.current) {
+        captureError(err, { screen: "InsightsScreen", action: "refresh", month });
+        setError(getErrorMessage(err));
+      }
     } finally {
       if (requestId === latestRequestId.current) setRefreshing(false);
     }

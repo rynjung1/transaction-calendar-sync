@@ -7,6 +7,7 @@ import { RefreshCw, LogOut, CircleCheck, CircleX, Inbox } from "lucide-react-nat
 import { syncTransactions, confirmCalendarEvent } from "../lib/api";
 import { createTransactionEvent, removeTransactionEvent } from "../lib/calendar";
 import { getErrorMessage } from "../lib/errors";
+import { captureError } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import type { SelectedCalendar, SyncedTransaction } from "../types";
 import { theme } from "../lib/theme";
@@ -136,6 +137,14 @@ export default function HomeScreen({ calendar }: Props) {
             synced.push({ ...txn, calendarEventId: eventId, status: "synced" });
             pageSucceeded++;
           } catch (err) {
+            // Previously completely silent — not even a console.error —
+            // despite this being the single most operationally important
+            // failure mode in the app (the core feature not happening for
+            // one transaction). No per-transaction Alert here by design
+            // (a failed sync already aggregates into the end-of-loop
+            // summary Alert below), but that means without this, there was
+            // zero record anywhere of which transaction failed or why.
+            captureError(err, { transactionId: txn.id, screen: "HomeScreen", action: "sync transaction" });
             synced.push({ ...txn, status: "failed" });
           }
           setProgress({ done: synced.length, total });
@@ -185,6 +194,7 @@ export default function HomeScreen({ calendar }: Props) {
         );
       }
     } catch (err) {
+      captureError(err, { screen: "HomeScreen", action: "sync" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Sync failed", getErrorMessage(err));
     } finally {

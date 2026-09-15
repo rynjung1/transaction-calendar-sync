@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { Mail, Lock } from "lucide-react-native";
 import { supabase } from "../lib/supabase";
 import { getErrorMessage } from "../lib/errors";
+import { captureError } from "../lib/sentry";
 import TurnstileChallenge, { TurnstileChallengeHandle } from "../components/TurnstileChallenge";
 import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
@@ -45,6 +46,7 @@ export default function AuthScreen() {
     try {
       return await turnstileRef.current?.execute();
     } catch (err) {
+      captureError(err, { screen: "AuthScreen", action: "turnstile challenge" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Couldn't verify you're human", getErrorMessage(err));
       throw err;

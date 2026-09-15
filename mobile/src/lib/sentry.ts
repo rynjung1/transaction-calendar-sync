@@ -42,3 +42,27 @@ export function initSentry() {
     debug: false,
   });
 }
+
+// Real gap found on a fresh read-through, after initSentry() above was
+// already in place: Sentry's automatic global handlers only ever catch
+// UNCAUGHT exceptions and render crashes — every one of this app's ~9
+// try/catch blocks (auth, sync, settings, linking) that catches an error and
+// handles it locally (usually just an Alert to the user) was invisible to
+// Sentry entirely, since a caught exception never reaches those global
+// handlers. That's the exact gap initSentry()'s own comment describes
+// ("nothing on-device reports anywhere if something goes wrong") — it just
+// wasn't actually closed for the most common failure shape in the app,
+// only for the rarer uncaught-crash case. A per-transaction calendar-write
+// failure in HomeScreen specifically had zero signal anywhere (not even a
+// console.error) before this.
+//
+// Confirmed safe to call unconditionally, including before initSentry() has
+// run (an empty DSN never calls Sentry.init at all): read the installed
+// SDK's own Scope.captureException — it checks for a configured client and
+// simply returns without throwing if there isn't one, only logging a debug
+// warning in a debug build. So every call site below stays correct whether
+// or not a real Sentry project exists yet, same posture as the DSN check
+// above.
+export function captureError(err: unknown, context: Record<string, unknown> = {}) {
+  Sentry.captureException(err, { extra: context });
+}

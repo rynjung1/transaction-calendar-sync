@@ -6,6 +6,7 @@ import { Building2 } from "lucide-react-native";
 import { createPlaidLinkSession } from "react-native-plaid-link-sdk";
 import { createLinkToken, exchangePublicToken } from "../lib/api";
 import { getErrorMessage } from "../lib/errors";
+import { captureError } from "../lib/sentry";
 import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { spacing } from "../lib/spacing";
@@ -46,6 +47,12 @@ export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onLinked();
           } catch (err) {
+            // Worth real visibility: exchange-token.ts's own fix (see
+            // CLAUDE.md) closed the server-side credential-loss risk here,
+            // but this is still the client-side signal that a Link success
+            // didn't actually finish — e.g. a network drop between a real
+            // Plaid success and our own exchange call.
+            captureError(err, { screen: "LinkAccountScreen", action: "exchange public token" });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert("Couldn't finish linking", getErrorMessage(err));
           } finally {
@@ -66,6 +73,7 @@ export default function LinkAccountScreen({ onLinked, onCancel }: Props) {
 
       await session.open();
     } catch (err) {
+      captureError(err, { screen: "LinkAccountScreen", action: "start plaid link" });
       connecting.current = false;
       setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

@@ -9,6 +9,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
 import { getPlaidStatus } from "./src/lib/api";
 import { getErrorMessage } from "./src/lib/errors";
+import { captureError } from "./src/lib/sentry";
 import AuthScreen from "./src/screens/AuthScreen";
 import LinkAccountScreen from "./src/screens/LinkAccountScreen";
 import CalendarPickerScreen from "./src/screens/CalendarPickerScreen";
@@ -119,7 +120,10 @@ export default function App() {
         // to route an already-linked user back through the first-link flow
         // on nothing more than a bad connection. Show a real error with a
         // way to retry instead of guessing either way.
-        if (!cancelled) setStatusError(getErrorMessage(err));
+        if (!cancelled) {
+          captureError(err, { screen: "App", action: "check plaid status" });
+          setStatusError(getErrorMessage(err));
+        }
       })
       .finally(() => {
         if (!cancelled) setBooting(false);
@@ -137,11 +141,16 @@ export default function App() {
       if (cancelled || !raw) return;
       try {
         setCalendar(JSON.parse(raw));
-      } catch {
+      } catch (err) {
         // Corrupted local data (a bad write, a leftover incompatible shape
         // from an older version) — treat as "no calendar chosen yet" rather
         // than let JSON.parse throw inside this unhandled promise callback.
         // The picker just runs again; nothing the user did caused this.
+        // Still worth knowing how often this actually happens in the wild —
+        // it's silently self-healing today, but that's exactly the kind of
+        // thing that could mask a real underlying bug if it turned out to
+        // happen a lot.
+        captureError(err, { screen: "App", action: "parse stored calendar" });
         AsyncStorage.removeItem(key);
       }
     });

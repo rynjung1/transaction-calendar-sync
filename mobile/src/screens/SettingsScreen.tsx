@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import { CircleCheck } from "lucide-react-native";
 import { getSyncFilters, updateSyncFilters, deleteAccount } from "../lib/api";
 import { getErrorMessage } from "../lib/errors";
+import { captureError } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { theme } from "../lib/theme";
 import { typography } from "../lib/typography";
@@ -109,6 +110,7 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("Saved", "Your sync filters have been updated.");
     } catch (err) {
+      captureError(err, { screen: "SettingsScreen", action: "save sync filters" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Couldn't save filters", getErrorMessage(err));
     } finally {
@@ -145,6 +147,7 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
     try {
       await deleteAccount();
     } catch (err) {
+      captureError(err, { screen: "SettingsScreen", action: "delete account" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Couldn't delete account", getErrorMessage(err));
       setDeleting(false);
@@ -165,6 +168,7 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
       await supabase.auth.signOut();
     } catch (err) {
       console.error("Sign-out after account deletion failed (account was still deleted)", err);
+      captureError(err, { screen: "SettingsScreen", action: "sign out after account deletion" });
     }
   }
 

@@ -54,8 +54,45 @@ describe("safeErrorInfo", () => {
     expect(safe.name).toBe("Error");
   });
 
-  it("passes through a non-Error, non-axios value unchanged (e.g. a Supabase PostgrestError)", () => {
-    const postgrestLikeError = { message: "duplicate key value", code: "23505" };
-    expect(safeErrorInfo(postgrestLikeError)).toEqual(postgrestLikeError);
+  // A real Supabase/PostgrestError — confirmed directly against a genuine
+  // query failure, not assumed: it's a plain object (constructor "Object"),
+  // not an instanceof Error. That's the single most common error shape in
+  // this codebase (every DB call produces one on failure), and this
+  // function previously provided it zero actual normalization at all —
+  // silently falling through to the untyped final `return err` despite the
+  // function's own stated "used everywhere, for defense-in-depth" intent.
+  it("extracts message/code/details/hint from a real Supabase/PostgrestError shape, not a blind pass-through", () => {
+    const postgrestLikeError = {
+      message: "column plaid_items.made_up_column does not exist",
+      code: "42703",
+      details: null,
+      hint: null,
+    };
+    const safe = safeErrorInfo(postgrestLikeError);
+    expect(safe).toEqual(postgrestLikeError);
+  });
+
+  it("still normalizes a PostgrestError even with extra, unexpected fields on it", () => {
+    const postgrestLikeError = {
+      message: "duplicate key value violates unique constraint",
+      code: "23505",
+      details: "Key (item_id)=(abc123) already exists.",
+      hint: null,
+      somethingUnexpected: "should be dropped, not blindly forwarded",
+    };
+    const safe = safeErrorInfo(postgrestLikeError) as Record<string, unknown>;
+    expect(safe).toEqual({
+      message: postgrestLikeError.message,
+      code: postgrestLikeError.code,
+      details: postgrestLikeError.details,
+      hint: postgrestLikeError.hint,
+    });
+    expect(safe.somethingUnexpected).toBeUndefined();
+  });
+
+  it("falls through to the raw value for something that's neither an Error, an axios error, nor Postgrest-shaped", () => {
+    expect(safeErrorInfo("just a string")).toBe("just a string");
+    expect(safeErrorInfo(null)).toBe(null);
+    expect(safeErrorInfo(42)).toBe(42);
   });
 });

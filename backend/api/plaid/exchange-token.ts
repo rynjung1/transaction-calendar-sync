@@ -25,26 +25,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     const { access_token: accessToken, item_id: itemId } = exchange.data;
 
-    const itemResponse = await plaidClient.itemGet({ access_token: accessToken });
-    const institutionId = itemResponse.data.item.institution_id ?? null;
-
-    let institutionName: string | null = null;
-    if (institutionId) {
-      const institution = await plaidClient.institutionsGetById({
-        institution_id: institutionId,
-        country_codes: [CountryCode.Ca, CountryCode.Us],
-      });
-      institutionName = institution.data.institution.name;
-    }
-
+    // Persist the item the moment we have an access_token — before any
+    // institution enrichment — rather than after. itemPublicTokenExchange
+    // consumes the public_token; it's single-use and Plaid won't reissue
+    // one for it. The previous order called itemGet/institutionsGetById
+    // (pure enrichment, not required to have a usable linked item) BEFORE
+    // ever storing the token, so a transient failure in either of those —
+    // the exact class of Plaid hiccup already handled as non-fatal for the
+    // eager sync below — meant the freshly-exchanged access_token was never
+    // encrypted, never stored, and therefore could never be revoked either:
+    // a real, live credential to the user's actual bank account, silently
+    // orphaned, with the user simply told "couldn't link account" and free
+    // to retry (creating an entirely separate second Item at Plaid, leaving
+    // the first one's token live and untracked indefinitely). Institution
+    // name/id are cosmetic (shown in Settings) and are now best-effort,
+    // applied via an update after the item already exists.
     const { data: inserted, error } = await supabaseAdmin
       .from("plaid_items")
       .insert({
         user_id: user.id,
         item_id: itemId,
         access_token_encrypted: encrypt(accessToken),
-        institution_id: institutionId,
-        institution_name: institutionName,
+        institution_id: null,
+        institution_name: null,
         status: "active",
       })
       .select("id, user_id, item_id, access_token_encrypted, cursor")
@@ -52,6 +55,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (error || !inserted) {
       throw error;
+    }
+
+    try {
+      const itemResponse = await plaidClient.itemGet({ access_token: accessToken });
+      const institutionId = itemResponse.data.item.institution_id ?? null;
+
+      let institutionName: string | null = null;
+      if (institutionId) {
+        const institution = await plaidClient.institutionsGetById({
+          institution_id: institutionId,
+          country_codes: [CountryCode.Ca, CountryCode.Us],
+        });
+        institutionName = institution.data.institution.name;
+      }
+
+      if (institutionId) {
+        const { error: enrichError } = await supabaseAdmin
+          .from("plaid_items")
+          .update({ institution_id: institutionId, institution_name: institutionName })
+          .eq("id", inserted.id);
+        if (enrichError) {
+          console.error(`Failed to store institution info for plaid_items.id=${inserted.id}`, safeErrorInfo(enrichError));
+        }
+      }
+    } catch (err) {
+      // Non-fatal, same reasoning as the eager sync below: the item is
+      // already genuinely linked and usable (syncing doesn't depend on
+      // institution_name at all). Checked where institution_name is
+      // actually read — nowhere yet, the mobile app doesn't surface it in
+      // any screen today — so a failure here has zero current user-visible
+      // effect, only leaving the column null in a case where it could have
+      // been populated. No retry path for this specifically; not worth one
+      // while nothing reads the value.
+      console.error("Institution enrichment after linking failed (non-fatal)", safeErrorInfo(err));
     }
 
     // Pull the initial batch of transactions right away rather than waiting

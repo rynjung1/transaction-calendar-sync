@@ -90,7 +90,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // active" check rather than needing a schema change, and a real user
       // can't do anything about a bank-side revocation except relink fresh
       // anyway, the same recovery path "error" already points them to.
-      await supabaseAdmin.from("plaid_items").update({ status: "error" }).eq("id", item.id);
+      //
+      // Also nulls access_token_encrypted, per Plaid's own documented
+      // recommendation for exactly these two codes — the token is already
+      // dead at Plaid's end, so there's no reason to keep the encrypted
+      // copy around (migration 0006 made this column nullable specifically
+      // for this). Deliberately narrower than "any non-active item": a
+      // login_required/ITEM_ERROR item can still recover via re-auth and
+      // needs its token kept; only a confirmed-dead-at-Plaid's-end item's
+      // token is cleared.
+      //
+      // Deploy-order safety, same reasoning as sync.ts's rate-limit column:
+      // migration 0006 isn't necessarily applied yet, and the column is
+      // still NOT NULL until it is. Probed this for real against
+      // production (not assumed): a combined update that nulls the column
+      // pre-migration fails outright with Postgres's own 23502
+      // (not-null-violation) — and since it's a single UPDATE statement,
+      // that failure would have silently also lost the `status: "error"`
+      // half, which worked reliably before this change. Falls back to the
+      // status-only update on exactly that error code, so behavior stays
+      // at least as good as before regardless of migration timing.
+      const { error: revokeUpdateError } = await supabaseAdmin
+        .from("plaid_items")
+        .update({ status: "error", access_token_encrypted: null })
+        .eq("id", item.id);
+      if (revokeUpdateError?.code === "23502") {
+        await supabaseAdmin.from("plaid_items").update({ status: "error" }).eq("id", item.id);
+      } else if (revokeUpdateError) {
+        throw revokeUpdateError;
+      }
     } else if (webhookType === "ITEM" && webhookCode === "PENDING_DISCONNECT") {
       // US/CA-specific (this project's actual market) 7-day advance warning
       // that an Item will stop working soon. Not yet acted on — flipping

@@ -1,0 +1,19 @@
+-- Backs a real, previously-deferred data-lifecycle fix: Plaid's own Items
+-- API docs recommend deleting stored data associated with an Item when
+-- USER_PERMISSION_REVOKED/USER_ACCOUNT_REVOKED fires (the bank/user revoked
+-- access from their end, not through this app) — the access token is
+-- already dead at Plaid's end at that point, so there's no reason to keep
+-- the encrypted copy around. This wasn't done when those two webhook codes
+-- were first handled (see CLAUDE.md) because access_token_encrypted was
+-- NOT NULL and clearing it needed its own migration, and deleting the
+-- plaid_items row outright would cascade-delete the user's own
+-- transaction/Insights history over a bank-side event they didn't cause —
+-- neither acceptable as a quick fix.
+--
+-- Only ever set to null for an item whose token is already confirmed dead
+-- at Plaid's end (see webhook.ts's USER_PERMISSION_REVOKED/
+-- USER_ACCOUNT_REVOKED handling) — every other code path that creates or
+-- reads this column still expects and receives a real value; a "pending
+-- re-authentication" item (login_required/ITEM_ERROR) keeps its token,
+-- since that item can still recover.
+alter table public.plaid_items alter column access_token_encrypted drop not null;

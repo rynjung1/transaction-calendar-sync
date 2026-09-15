@@ -43,6 +43,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // on Plaid's side, logged here for manual follow-up rather than silently
     // dropped.
     for (const item of items ?? []) {
+      // A null access_token_encrypted means this item's token was already
+      // cleared — Plaid told us it revoked the item itself (webhook.ts's
+      // USER_PERMISSION_REVOKED/USER_ACCOUNT_REVOKED handling), so calling
+      // itemRemove on it would be pointless (nothing to decrypt, and Plaid
+      // already considers it dead). Skipped explicitly rather than letting
+      // decrypt(null) throw into the catch below, which would log a
+      // misleading "failed to remove" for a case that isn't a failure at all.
+      if (!item.access_token_encrypted) {
+        continue;
+      }
       try {
         const accessToken = decrypt(item.access_token_encrypted);
         await plaidClient.itemRemove({ access_token: accessToken });

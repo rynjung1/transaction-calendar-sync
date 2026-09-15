@@ -98,7 +98,24 @@ export default function HomeScreen({ calendar }: Props) {
     setSyncing(true);
     setProgress(null);
     try {
-      const synced: SyncedTransaction[] = [];
+      // Keyed by transaction id, not a plain array — real bug, found on a
+      // fresh read-through and confirmed with a simulation before fixing:
+      // the backend's "pending page" query (sync.ts) has no offset/cursor,
+      // it's always "the current top 100 pending rows by date". A
+      // transaction that fails mid-sync stays "pending" server-side, so a
+      // LATER page within this same multi-page loop can re-fetch and
+      // re-attempt the exact same transaction — simulating 150 pending with
+      // 10 failures on page 1 produced 160 pushes for only 150 distinct
+      // ids. With a plain array that means FlatList's
+      // `keyExtractor={(txn) => txn.id}` sees duplicate keys (undefined
+      // React reconciliation behavior, not just a console warning), and
+      // `synced.length` — used for both the live progress counter and the
+      // final "X of Y couldn't sync" summary — overcounts real attempts,
+      // visibly breaking both (e.g. "Syncing 160 of 150…"). A Map keyed by
+      // id means a later re-attempt's outcome simply overwrites the
+      // earlier one for that same transaction, matching what actually
+      // happened (its last real outcome), not double-counting it.
+      const synced = new Map<string, SyncedTransaction>();
       const pendingEvents = await getPendingEventMap();
 
       // The backend caps how many pending transactions one response returns
@@ -134,7 +151,7 @@ export default function HomeScreen({ calendar }: Props) {
             }
             await confirmCalendarEvent(txn.id, eventId);
             await clearPendingEvent(pendingEvents, txn.id);
-            synced.push({ ...txn, calendarEventId: eventId, status: "synced" });
+            synced.set(txn.id, { ...txn, calendarEventId: eventId, status: "synced" });
             pageSucceeded++;
           } catch (err) {
             // Previously completely silent — not even a console.error —
@@ -145,9 +162,9 @@ export default function HomeScreen({ calendar }: Props) {
             // summary Alert below), but that means without this, there was
             // zero record anywhere of which transaction failed or why.
             captureError(err, { transactionId: txn.id, screen: "HomeScreen", action: "sync transaction" });
-            synced.push({ ...txn, status: "failed" });
+            synced.set(txn.id, { ...txn, status: "failed" });
           }
-          setProgress({ done: synced.length, total });
+          setProgress({ done: synced.size, total });
         }
 
         // A transaction only leaves "pending" on a successful confirm — so a
@@ -160,18 +177,19 @@ export default function HomeScreen({ calendar }: Props) {
         hasMore = response.hasMore && (pageSucceeded > 0 || response.transactions.length === 0);
       }
 
-      setLastSynced(synced);
+      const syncedList = Array.from(synced.values());
+      setLastSynced(syncedList);
       setHasSynced(true);
 
       // Honest feedback about partial failure, not a blanket "Success" no
       // matter what happened — a user with 2 of 10 events missing from their
       // calendar should be told plainly, not just left to notice on their own.
-      const failedCount = synced.filter((s) => s.status === "failed").length;
-      if (synced.length === 0) {
+      const failedCount = syncedList.filter((s) => s.status === "failed").length;
+      if (syncedList.length === 0) {
         // Nothing to do — no haptic, the empty state already says so.
       } else if (failedCount === 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else if (failedCount === synced.length) {
+      } else if (failedCount === syncedList.length) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         // Every single one failing mid-use (as opposed to at initial setup,
         // where CalendarPickerScreen handles this) is consistent with
@@ -190,7 +208,7 @@ export default function HomeScreen({ calendar }: Props) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         Alert.alert(
           "Some transactions didn't sync",
-          `${failedCount} of ${synced.length} couldn't be added to your calendar. You can try syncing again.`
+          `${failedCount} of ${syncedList.length} couldn't be added to your calendar. You can try syncing again.`
         );
       }
     } catch (err) {

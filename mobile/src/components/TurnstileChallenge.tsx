@@ -16,16 +16,43 @@ interface Props {
   siteKey: string;
 }
 
+// If Cloudflare's script never loads (no network, the CDN unreachable, a
+// WebView content-blocking policy), the injected page's own waitForTurnstile
+// polling loop retries forever — window.turnstile.render() is never called,
+// so neither the success nor error-callback path in handleMessage below
+// ever fires. Without a bound here, execute()'s promise would then never
+// resolve or reject at all: getCaptchaToken() (awaited directly in
+// handleSignIn/handleSignUp before either ever reaches Supabase) would hang
+// indefinitely with the loading spinner stuck and no error shown — a real
+// dead end, the same class of thing already fixed elsewhere in this app
+// (the calendar-permission dead end). Not reachable today since Turnstile
+// is still inert (empty site key), but worth closing before it's turned on
+// rather than after a real user hits it.
+const EXECUTE_TIMEOUT_MS = 15_000;
+
 const TurnstileChallenge = forwardRef<TurnstileChallengeHandle, Props>(({ siteKey }, ref) => {
   const webviewRef = useRef<WebView>(null);
   const pending = useRef<{ resolve: (token: string) => void; reject: (err: Error) => void } | null>(
     null
   );
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function settle(fn: () => void) {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    pending.current = null;
+    fn();
+  }
 
   useImperativeHandle(ref, () => ({
     execute: () =>
       new Promise<string>((resolve, reject) => {
         pending.current = { resolve, reject };
+        timeoutRef.current = setTimeout(() => {
+          settle(() => reject(new Error("Couldn't verify you're human. Check your connection and try again.")));
+        }, EXECUTE_TIMEOUT_MS);
         webviewRef.current?.injectJavaScript(
           "window.turnstile && window.turnstile.execute(); true;"
         );
@@ -35,7 +62,7 @@ const TurnstileChallenge = forwardRef<TurnstileChallengeHandle, Props>(({ siteKe
   function handleMessage(event: WebViewMessageEvent) {
     if (!pending.current) return;
     const { resolve, reject } = pending.current;
-    pending.current = null;
+    settle(() => {});
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === "success" && typeof data.token === "string") {

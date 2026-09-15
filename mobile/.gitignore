@@ -37,6 +37,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# vitest coverage output (not currently generated — neither test script
+# passes --coverage — but cheap to exclude before it's ever a problem)
+coverage/
+
 # generated native folders
 /ios
 /android

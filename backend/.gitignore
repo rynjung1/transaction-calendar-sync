@@ -4,6 +4,10 @@ node_modules/
 .vercel/
 .vercel
 
+# vitest coverage output (not currently generated — the test script doesn't
+# pass --coverage — but cheap to exclude before it's ever a problem)
+coverage/
+
 # Supabase CLI local/project metadata — includes project ref, org id, and
 # pooler connection info. Never commit this.
 supabase/.temp/

@@ -13,14 +13,23 @@ import Constants from "expo-constants";
 // No-ops safely on an empty DSN (the placeholder in app.config.ts before a
 // real Sentry project exists) rather than throwing — this file is safe to
 // import unconditionally regardless of whether a DSN has been configured
-// yet.
-export function initSentry() {
+// yet. Returns whether it actually initialized — real, live finding: index.ts
+// used to call `Sentry.wrap(App)` unconditionally regardless of this return
+// value, which produced a genuine warning on every single launch while
+// unconfigured ("App Start Span could not be finished. Sentry.wrap was
+// called before Sentry.init") — confirmed live, not assumed, in a real
+// Metro log during this session's own testing. `Sentry.wrap` still degrades
+// safely without a client (same posture as `captureError` below), so this
+// was never a functional bug, just unnecessary console noise on every
+// launch — but the caller now skips wrapping entirely when there's nothing
+// to wrap for, closing it rather than leaving it as expected noise.
+export function initSentry(): boolean {
   const dsn = Constants.expoConfig?.extra?.sentryDsn;
   if (!dsn) {
     if (__DEV__) {
       console.log("[sentry] No DSN configured — crash/error reporting is disabled.");
     }
-    return;
+    return false;
   }
 
   Sentry.init({
@@ -41,6 +50,7 @@ export function initSentry() {
     enabled: !__DEV__,
     debug: false,
   });
+  return true;
 }
 
 // Real gap found on a fresh read-through, after initSentry() above was

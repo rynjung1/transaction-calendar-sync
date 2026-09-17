@@ -10,10 +10,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { CircleCheck } from "lucide-react-native";
 import { getSyncFilters, updateSyncFilters, deleteAccount } from "../lib/api";
 import { getErrorMessage } from "../lib/errors";
 import { captureError } from "../lib/sentry";
@@ -228,16 +228,24 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
               <Pressable
                 style={styles.categoryRow}
                 onPress={() => toggleCategory(category)}
-                accessibilityRole="checkbox"
+                accessibilityRole="switch"
                 accessibilityState={{ checked: isExcluded }}
                 accessibilityLabel={humanizeCategory(category)}
               >
                 <Text style={styles.categoryLabel}>{humanizeCategory(category)}</Text>
-                {isExcluded ? (
-                  <CircleCheck size={20} color={theme.textPrimary} />
-                ) : (
-                  <View style={styles.uncheckedCircle} />
-                )}
+                <Switch
+                  value={isExcluded}
+                  onValueChange={() => toggleCategory(category)}
+                  trackColor={{ false: theme.border, true: theme.seriesBlue }}
+                  thumbColor={theme.pagePlane}
+                  ios_backgroundColor={theme.border}
+                  // The row's own Pressable already handles taps (a bigger,
+                  // easier target than the switch alone, matching this
+                  // screen's other rows) — pointerEvents="none" here stops
+                  // the switch from also handling its own tap and toggling
+                  // twice in the same gesture.
+                  pointerEvents="none"
+                />
               </Pressable>
             );
           }}
@@ -335,13 +343,6 @@ const styles = StyleSheet.create({
     borderColor: theme.border,
   },
   categoryLabel: { ...typography.md, color: theme.textPrimary },
-  uncheckedCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.border,
-  },
   saveButton: {
     backgroundColor: theme.textPrimary,
     paddingVertical: spacing.md,

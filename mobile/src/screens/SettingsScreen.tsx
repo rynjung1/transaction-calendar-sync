@@ -198,8 +198,9 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
 
         <Text style={styles.sectionTitle}>Minimum amount</Text>
         <Text style={styles.sectionSubtitle}>
-          Charges below this amount won't be synced to your calendar. Refunds and income are never
-          filtered by amount.
+          From now on, charges below this amount won't be synced to your calendar. Refunds and
+          income are never filtered by amount. Transactions already on your calendar aren't
+          affected.
         </Text>
         <View style={styles.inputRow}>
           <Text style={styles.inputPrefix}>$</Text>
@@ -216,7 +217,8 @@ export default function SettingsScreen({ onAddAccount, onChangeCalendar }: Props
 
         <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Excluded categories</Text>
         <Text style={styles.sectionSubtitle}>
-          Transactions in these categories are never synced, regardless of amount.
+          From now on, transactions in these categories won't be synced, regardless of amount.
+          Transactions already on your calendar aren't affected.
         </Text>
         <FlatList
           style={styles.list}
